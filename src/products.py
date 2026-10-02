@@ -75,16 +75,27 @@ CHC_URLS = {
 }
 
 
+# shape -> (top, left, res) for CHC rasters that arrive without a geotransform
+UNGEOREFERENCED = {(2400, 7200): (60.0, -180.0, 0.05), (2000, 7200): (50.0, -180.0, 0.05)}
+
+
 def read_fine(path: Path, scale: float = 1.0) -> tuple[np.ndarray, float, float, float]:
     """North-up float32 array with nodata/negatives as NaN, plus top/left/res."""
     with rasterio.open(path) as src:
         a = src.read(1).astype(np.float32)
         nod = src.nodata
         t = src.transform
-        res = round(t.a, 4)
-        top, left = round(t.f, 3), round(t.c, 3)
-        if not np.isclose(-t.e, t.a, rtol=1e-4):
-            raise ValueError(f"{path}: non-square pixels {t}")
+        if t.is_identity and a.shape in UNGEOREFERENCED:
+            # CHC has published some files without georeferencing (e.g. CHIRP v3
+            # from 2024-10). Same pixel layout as the georeferenced months
+            # (verified: r = 0.96 with CHIRPS v3 2024-10 as-is, 0.20 flipped).
+            top, left, res = UNGEOREFERENCED[a.shape]
+            print(f"[read_fine] {path.name}: no geotransform, assuming top={top} left={left} res={res}", flush=True)
+        else:
+            res = round(t.a, 4)
+            top, left = round(t.f, 3), round(t.c, 3)
+            if not np.isclose(-t.e, t.a, rtol=1e-4):
+                raise ValueError(f"{path}: non-square pixels {t}")
     if nod is not None:
         a[a == nod] = np.nan
     a[a < 0] = np.nan  # -9999 / -99 style fills
