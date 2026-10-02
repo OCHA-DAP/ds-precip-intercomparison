@@ -391,6 +391,11 @@ function renderNetworks(nw) {
     el("label", {}, "Region:"), selectBox(Object.keys(nw.drift[ref]).map((r) => [r, r]), (v) => { reg = v; draw(); }, reg)),
     el("div", { id: "drift-chart-plot" }));
   draw();
+  const lf = n.imerg_late_over_final_monthly;
+  if (lf && lf.time.length) {
+    lineChart($("#late-final-chart"), { x: lf.time, series: [{ key: "imerg_late", label: "IMERG Late ÷ IMERG Final (monthly)", color: STYLE.imerg_late.color, dash: "", values: lf.ratio }],
+      yLabel: "Late ÷ Final", yFormat: (v) => fmt(v, 2), refY: 1, height: 260 });
+  }
   const st = $("#steps-table");
   const t = el("table", { class: "t" });
   t.append(el("thead", {}, el("tr", {}, ...["Test", "Before", "Ratio", "After", "Ratio", "Change"].map((h) => el("th", {}, h)))));

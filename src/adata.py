@@ -40,6 +40,14 @@ KOPPEN_MAJOR = {
 }
 
 
+# Months excluded from a product because the source itself is known-bad.
+# IMERG V07 Early/Late: corrupted GPM Core (CORRA) calibration produced
+# unrealistically high values from 17 Oct 2024 until repaired calibration files
+# were applied on 2 Nov 2024 (NASA IMERG V07 release notes, Nov 2024). The team's
+# operational Late archive holds those values (daily maxima 1,000-4,000 mm).
+KNOWN_BAD = {"imerg_late": ["2024-10", "2024-11"]}
+
+
 @dataclass
 class Data:
     time: pd.DatetimeIndex
@@ -100,6 +108,12 @@ def load(end: str | None = None) -> Data:
                 d.extra[alias] = _align(t, z[var], time)
         if "valid_frac" in z:
             d.extra[f"{name}_valid_frac"] = z["valid_frac"]
+    for prod, bad in KNOWN_BAD.items():
+        if prod in d.precip:
+            for ym in bad:
+                i = time.get_indexer([pd.Timestamp(ym + "-01")])[0]
+                if i >= 0:
+                    d.precip[prod][i] = np.nan
     # ASAP blend: CHIRPS v2 within +-50 deg, ERA5 beyond.
     if "chirps_v2" in d.precip and "era5" in d.precip:
         inside = np.abs(cells["lat"]) < 50

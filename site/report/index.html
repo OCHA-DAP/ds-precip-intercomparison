@@ -158,6 +158,17 @@
   <p>Annual totals divided by the reference's, by region. A flat line at a constant ratio is a stable bias;
      a slope or a step is drift — in the product, the reference, or both.</p>
   <div id="drift-chart"></div>
+  <h3>The operational IMERG Late run against IMERG Final</h3>
+  <p>The team's triggers read IMERG <i>Late</i> — available within a day, but without the monthly gauge
+     calibration that Final gets months later. Below: Late ÷ Final, month by month, over the common domain,
+     from the team's own daily archive. The spike in October 2024 is a documented NASA incident: corrupted
+     GPM Core calibration data produced unrealistically high Early and Late values from 17 October until
+     repaired calibration files were applied on 2 November 2024
+     (<a href="https://gpm.nasa.gov/sites/default/files/2024-12/IMERG_V07_ReleaseNotes_241126.pdf">IMERG V07
+     release notes</a>). The archive still holds those values — daily maxima of 1,000–4,000 mm — so anything
+     computed from IMERG Late for those weeks is wrong. October and November 2024 are excluded from every
+     other IMERG Late statistic on this page.</p>
+  <div id="late-final-chart"></div>
   <h3>Step tests at known changes</h3>
   <div id="steps-table"></div>
 </section>

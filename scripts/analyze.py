@@ -402,6 +402,24 @@ def main() -> None:
         net["chirps_v3_fill_frac"] = per_year(d.extra["chirps3_fill"], lambda a: float(np.nanmean(a[:, common])) if np.isfinite(a).any() else None)
     if "imerg_gauge_weight" in d.extra:
         net["imerg_final_gauge_weight"] = per_year(d.extra["imerg_gauge_weight"], lambda a: float(np.nanmean(a[:, common])) if np.isfinite(a).any() else None)
+    # IMERG Late / Final, monthly, common domain — from the UNMASKED Late
+    # archive, so the Oct 2024 calibration incident stays visible
+    if {"imerg_late", "imerg_final"} <= set(P):
+        zl = np.load(ROOT / "cache" / "packed" / "imerg_late.npz")
+        tl = [str(t) for t in zl["time"]]
+        XL = zl["precip"]
+        xf = d.precip["imerg_final"]
+        ser_t, ser_r = [], []
+        for k, t in enumerate(d.time):
+            ym = f"{t:%Y-%m}"
+            if ym not in tl:
+                continue
+            a, b = XL[tl.index(ym)], xf[k]
+            ok = common & np.isfinite(a) & np.isfinite(b)
+            if ok.sum() > 0.9 * common.sum():
+                ser_t.append(ym)
+                ser_r.append(float(np.sum(a[ok] * w[ok]) / np.sum(b[ok] * w[ok])))
+        net["imerg_late_over_final_monthly"] = {"time": ser_t, "ratio": ser_r}
     # annual product/reference ratios on the common domain (drift view)
     drift = {}
     ann_cache = {}
@@ -440,6 +458,7 @@ def main() -> None:
     steps["CPC 2006 network change (vs GPCC Full)"] = step("cpc", "gpcc_full", (1996, 2005), (2007, 2016))
     steps["IMERG Final TRMM→GPM 2014 (vs GPCC Monitoring)"] = step("imerg_final", "gpcc_monitoring", (2004, 2013), (2015, 2024))
     steps["IMERG Late TRMM→GPM 2014 (vs GPCC Monitoring)"] = step("imerg_late", "gpcc_monitoring", (2004, 2013), (2015, 2024))
+    steps["IMERG Late drift since 2022 (vs IMERG Final)"] = step("imerg_late", "imerg_final", (2001, 2021), (2022, 2025))
     steps["IMERG Final 2021 calibration switch (vs GPCC Monitoring)"] = step("imerg_final", "gpcc_monitoring", (2011, 2020), (2021, 2025))
     steps["ERA5 1983–2000 → 2001–2020 (vs GPCC Full)"] = step("era5", "gpcc_full", (1983, 2000), (2001, 2020))
     steps["CHIRPS v2 1983–2000 → 2001–2020 (vs GPCC Full)"] = step("chirps_v2", "gpcc_full", (1983, 2000), (2001, 2020))
