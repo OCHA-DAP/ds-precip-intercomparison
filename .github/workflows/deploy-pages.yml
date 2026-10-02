@@ -30,7 +30,10 @@ jobs:
       - name: Download report outputs from blob (sha256-verified)
         env:
           DSCI_AZ_BLOB_DEV_SAS: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS }}
-        run: uv run --no-project --with "ocha-stratus>=0.1.8" python scripts/site_blob.py download
+          # the runner's system Python leaks Debian dist-packages (botocore,
+          # pyOpenSSL) that break urllib3 — use a uv-managed interpreter
+          UV_PYTHON_PREFERENCE: only-managed
+        run: uv run --no-project --python 3.12 --with "ocha-stratus>=0.1.8" python scripts/site_blob.py download
       - name: Assemble site
         run: |
           mkdir -p _site/report
