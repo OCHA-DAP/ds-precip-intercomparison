@@ -303,14 +303,15 @@ function renderTerciles(tt) {
     host.append(heatTable({
       rows: prods, cols: regions, rotate: true,
       value: (r, c) => tt.table[r]?.[scale]?.[c]?.[clim]?.[metric],
-      color: (v) => (metric === "pofd" ? seqColor(0.6 - v, 0, 0.6) : seqColor(v, metric === "hit" ? 0.3 : 0, 1)),
-      format: (v) => fmt(v, 2), title: { pss: "Peirce skill", kappa: "Cohen's κ (3 classes)", hit: "dry hit rate", pofd: "false-alarm rate" }[metric],
+      color: (v) => (metric === "pofd" || metric === "far" ? seqColor(0.6 - v, 0, 0.6) : seqColor(v, metric === "hit" ? 0.3 : 0, 1)),
+      format: (v) => fmt(v, 2),
+      title: { pss: "Peirce skill", kappa: "Cohen's κ (3 classes)", hit: "dry hit rate", far: "false-alarm ratio", pofd: "false detection (POFD)" }[metric],
     }));
   };
   host.append(el("div", { class: "controls" },
     el("label", {}, "Accumulation:"), seg([["1-month", "1 month"], ["3-month", "3 months"]], (v) => { scale = v; draw(); }, scale),
     el("label", {}, "Terciles from:"), seg([["own", "each product's own climatology"], ["common", "GPCC's climatology"]], (v) => { clim = v; draw(); }, clim),
-    el("label", {}, "Score:"), seg([["pss", "PSS"], ["kappa", "κ"], ["hit", "Hit rate"], ["pofd", "False alarms"]], (v) => { metric = v; draw(); }, metric)));
+    el("label", {}, "Score:"), seg([["pss", "PSS"], ["kappa", "κ"], ["hit", "Hit rate"], ["far", "False-alarm ratio"], ["pofd", "False detection"]], (v) => { metric = v; draw(); }, metric)));
   draw();
   const ph = $("#terc-pairwise");
   const regs = Object.keys(tt.pairwise_pss_3month);

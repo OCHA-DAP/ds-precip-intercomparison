@@ -33,62 +33,73 @@
 
 <section id="findings">
   <h2>Main findings</h2>
-  <p class="muted">All numbers: land, 2001–2020 unless stated, area-weighted over the 37,500 0.5° cells
-     (76% of non-Antarctic land, 50°S–50°N) that every product covers. "GPCC" = GPCC Full Data v2022.</p>
+  <p class="muted">Land, 2001–2020 unless stated, over the 37,500 0.5° cells (76% of non-Antarctic land,
+     50°S–50°N) that every product covers. "GPCC" = GPCC Full Data v2022. Biases and trends are area-weighted;
+     correlations and triple collocation are medians over cells; tercile scores pool all cells and months.</p>
   <ol class="findings">
-    <li><b>Most of the land has no rain gauge behind it, and the network is shrinking.</b> Two-thirds of
-        the common domain (24,800 cells) never had a GPCC gauge in 2001–2020; only 23% had one in at least
-        half the months. GPCC Full Data's gauge count fell from 48,000 in 1985 to 10,000 in 2020, and
-        CHIRPS v3's from 44,000 to 27,000. Every gauge-based number below means less in those cells —
-        including the reference.</li>
-    <li><b>Average biases are small, and the wet end is mostly gauge undercatch.</b> Against GPCC: CHIRPS v2
-        +2%, CHIRP v2 +1%, CHIRP v3 +4%, IMERG Late +4%, IMERG Final +5%, CHIRPS v3 +8%, ERA5 +8%; the gauge
-        analyses within ±3% — except <b>CPC, 14% drier (23% in Africa)</b>. Lift the gauges by the
-        Legates–Willmott undercatch factors and CHIRPS v3 (1.01), IMERG Final (0.98) and ERA5 (1.02) all
-        land on GPCC. CHIRPS v3's extra rain over v2 grows with the undercatch factor (v3/v2 = 1.02 where the
-        factor is below 1.05, 1.28 where it exceeds 1.5): it is v3's undercatch correction, by design.</li>
-    <li><b>Regional biases are much larger than the global ones.</b> ERA5 is 15% wetter than GPCC in Asia
-        and 20% wetter in cold climates; near-unbiased over Africa as a whole, it is 16% too dry in the
-        Sahel (10–18°N) and gives about a third of the gauge totals on the Sahara's southern margin (18–22°N); poleward of 50° it is much wetter than the gauges (snow undercatch in
-        the gauges). CPC is dry across the tropics.</li>
+    <li><b>Most of the land has no rain gauge behind it.</b> Two-thirds of the common domain (24,800 cells) never
+        had a GPCC gauge in 2001–2020; 23% had one in at least half the months. The number of gauges in GPCC
+        Full Data falls from 52,000 a month in 1986 to 12,000 in 2020 — partly a real decline, partly
+        station data that reach GPCC years late and will raise the recent counts in later versions. Every
+        gauge-based number below means less in those cells, including the reference.</li>
+    <li><b>Average biases are small, and the wet end is consistent with gauge undercatch.</b> Against GPCC:
+        CHIRP v2 +1%, CHIRPS v2 +2%, CHIRP v3 +4%, IMERG Late +4%, IMERG Final +5%, CHIRPS v3 +8%, ERA5 +8%;
+        the gauge analyses within ±2% — except <b>CPC, 14% drier (23% in Africa)</b>. With every gauge
+        product lifted by the Legates–Willmott undercatch factors, CHIRPS v3 (1.01), ERA5 (1.02) and IMERG
+        Final (0.99) land on GPCC, while CHIRPS v2 (0.96), CHIRP v2 (0.94) and IMERG Late (0.98) turn
+        slightly dry. CHIRPS v3's extra rain over v2 rises with the undercatch factor (v3/v2 = 1.02 where the
+        factor is below 1.05, 1.28 where it exceeds 1.5) — consistent with v3's station undercatch
+        correction, though the cell-level correlation is only 0.28.</li>
+    <li><b>Regional biases are much larger than the global ones.</b> ERA5 is 15% wetter than GPCC in Asia,
+        20% wetter in cold climates and 27% wetter poleward of 50°N (where gauges miss snow), near-unbiased
+        over Africa as a whole but 16% too dry in the Sahel (10–18°N) and about a third of GPCC's totals on
+        the Sahara's southern margin (18–22°N). CPC is dry across the tropics.</li>
     <li><b>Where there are no gauges, products stop agreeing on which months are wet or dry — Africa most of
         all.</b> Median correlation of monthly anomalies with GPCC in Africa: CHIRPS 0.56, CRU 0.49, IMERG
-        Late 0.43, ERA5 0.42, PREC/L 0.42 — the same products reach 0.77–0.89 in Europe. Triple collocation, which needs no reference,
-        reverses the usual ranking there: in Africa CHIRPS v3 (ρ² 0.73), CHIRPS v2 (0.67), IMERG Final and
-        ERA5 (0.61) all beat the gauge-only analyses (GPCC 0.35, CRU 0.26), while in Europe GPCC (0.90) is
-        among the best. Without stations CHIRP is weak everywhere (ρ² ≈ 0.35): the stations do most of
-        CHIRPS's work.</li>
-    <li><b>For drought triggers, the choice of product changes about a third of the calls in gauge-free
-        areas.</b> For 3-month totals in their own bottom tercile, IMERG Final catches 79% of GPCC's dry
-        seasons (10% false alarms), CHIRPS v2 69% (16%), ERA5 66% (18%), IMERG Late 62% (20%); in Africa
-        56%, 52% and 51% for CHIRPS v2, ERA5 and IMERG Late. In never-gauged cells CHIRPS v2 and
-        ERA5 agree on 64% of each other's dry seasons, CHIRPS v2 and IMERG Late on 63%.</li>
+        Late 0.43, ERA5 0.42, PREC/L 0.42 — the same products reach 0.77–0.89 in Europe. Triple collocation,
+        which needs no reference, reverses the usual ranking there: in Africa CHIRPS v3 (ρ² 0.73), CHIRPS v2
+        (0.67), IMERG Final (0.60) and ERA5 (0.59) all beat the gauge-only analyses (GPCC 0.34, CRU 0.24),
+        while in Europe GPCC (0.90) is among the best. Without stations CHIRP is weak everywhere
+        (ρ² ≈ 0.35): the stations do most of CHIRPS's work.</li>
+    <li><b>For drought triggers, the product changes a large share of the calls.</b> For 3-month totals in
+        their own bottom tercile, against GPCC: IMERG Final catches 79% of GPCC's dry seasons and 19% of its
+        dry calls are not dry in GPCC; CHIRPS v2 69% and 29%; ERA5 66% and 32%; IMERG Late 62% and 36%. In
+        Africa the hit rates fall to 51–56% for CHIRPS v2, ERA5 and IMERG Late and the false-alarm ratios rise
+        to 35–41%. Between two gauge-independent products in never-gauged cells (CHIRPS v2 and ERA5, PSS
+        0.46) agreement is about two dry seasons in three.</li>
     <li><b>There is no consensus trend, and several products drift.</b> 1983–2020 trends over the common
-        domain run from −1.7% per decade (CHIRP v3) to +1.8% (CHIRP v2), with the gauge analyses at +0.5 to
-        +1.6% (CPC −0.8%); at least 80% of products agree on the sign over only 45% of the area. Difference series
-        isolate the artefacts:
+        domain run from −1.7% per decade (CHIRP v3) to +1.8% (CHIRP v2) — the two station-free satellite
+        products disagree by 3.5 points — with the gauge analyses at +0.5 to +1.6% (CPC −0.8%). At least 80%
+        of the 11 independent products agree on the sign over only 46% of the area. Trends of the
+        <i>difference</i> between two products isolate drifts:
         <ul>
-          <li><b>ERA5 dries relative to everything</b> — −2.3% per decade against GPCC, −5.3% in Africa and
-              arid climates, significant in 29% of cells against 5–10% for most other pairs — and also against the
-              gauge-free CHIRP v3 in Africa (−3.3%), so it is ERA5, not the gauges. Its ratio to GPCC fell
-              from 1.14 (1983–2000) to 1.08 (2001–2020).</li>
-          <li><b>CHIRPS v2 gets wetter relative to GPCC</b> (+1.2% per decade, +2.3% between the two
-              halves), from its satellite part: CHIRPS v2 − CHIRP v2 has no trend.</li>
-          <li><b>CHIRP v3 dries relative to the gauges</b> (−2.3% per decade) and CHIRPS v3's stations
-              correct it (CHIRPS v3 − GPCC −0.5%, not significant) — except over Central and South Asia east
-              of about 72°E, where CHIRPS v3 gets +9 to +14% per decade wetter than GPCC with a sharp edge at
-              that longitude, the signature of a satellite-coverage boundary, not climate.</li>
+          <li><b>ERA5 dries in Africa and arid climates</b> — −5.3% per decade against GPCC there, and −3.3%
+              against the gauge-free CHIRP v3 too, so in those regions it is ERA5 drifting, not the gauges.
+              Globally the picture is ambiguous: ERA5 − GPCC is −2.3% per decade (significant in 29% of cells
+              but not for the regional series) and CHIRP v3 − GPCC is the same −2.3%, which would equally fit
+              GPCC getting wetter. ERA5's ratio to GPCC fell from 1.14 (1983–2000) to 1.08 (2001–2020).</li>
+          <li><b>CHIRPS v2 gets wetter relative to GPCC</b> (+1.2% per decade), from its satellite part:
+              CHIRPS v2 − CHIRP v2 has no trend.</li>
+          <li><b>CHIRPS v3's stations add a wetting trend to CHIRP v3</b> (+1.8% per decade, the most
+              significant difference on the page), bringing it in line with GPCC (−0.5%, not significant).</li>
+          <li><b>CHIRP v3 and CHIRPS v3 have a meridional seam near 72°E</b> in Central and South Asia: drying
+              against GPCC in a band at about 64–72°E and wetting on both sides of it, following the meridian
+              across national borders. It is present in the station-free CHIRP v3 and absent from ERA5 and
+              CRU against GPCC, so it comes from CHIRP v3's satellite inputs; its cause is not established.
+              Treat CHIRPS v3 trends in that region with caution.</li>
           <li><b>CPC is unstable</b>: relative to GPCC it trends +5.6% per decade in Asia and −5.2% in South
               America (1983–2020), and since 2001 its own trends reach +13% and −11% per decade there. Do not
               use it for trends.</li>
-          <li>Cells with a gauge every year show the same regional trends as all cells, so GPCC's shrinking
-              network is not what drives GPCC's own regional trends.</li>
+          <li>Globally, the 7% of the area that had a GPCC gauge every year shows a similar GPCC trend (+0.7%
+              per decade) to all cells (+0.5%) and gauge-free cells (+0.8%), so the shrinking network does not
+              appear to drive GPCC's own global trend.</li>
         </ul></li>
     <li><b>The operational IMERG Late run is noisier than the Final run that backtests often use, and has
-        drifted.</b> Its anomaly correlation with GPCC is 0.64 against Final's 0.92, and its dry-tercile
-        skill 0.42 against 0.68. Late ÷ Final was 1.00 for 2001–2021 and 1.05 for 2022–2025. The team's
-        archive also still holds NASA's corrupted values from 17 October – 2 November 2024 (daily totals up to
-        4,000 mm); that period is masked here and should be in any IMERG Late analysis.</li>
+        drifted.</b> Triple collocation, which does not reward Final for its calibration to GPCC, gives Late
+        ρ² 0.61 against Final's 0.85; dry-tercile skill against GPCC is 0.42 against 0.68. Late ÷ Final was
+        1.00 for 2001–2021 and 1.05 for 2022–2025. The team's archive also still holds NASA's corrupted values
+        from 17 October – 2 November 2024 (daily totals up to 4,000 mm); that period is masked here and
+        should be in any IMERG Late analysis.</li>
     <li><b>The ASAP rainfall blend is CHIRPS v2 between 50°S and 50°N</b>, so it inherits CHIRPS v2's
         results, including its wetting drift relative to the gauges.</li>
   </ol>
@@ -165,7 +176,8 @@
      each correlates with the unknown truth. Each product is paired with two partners chosen so their
      errors are plausibly independent of it (bracketed). Assumptions are imperfect — CHIRP's climatology
      uses GPCC station normals (anomalies largely remove this), IMERG Final and CHIRP share infrared
-     inputs — so read differences of a few hundredths as ties.</p>
+     inputs — so read differences of a few hundredths as ties. Sampling noise pushes some cell estimates
+     outside 0–1; they are clipped to the bound before taking medians.</p>
   <div id="tc-table"></div>
   <figure><img src="fig/tc_rho2.png" alt="Small-multiple maps of triple-collocation squared correlation with truth." loading="lazy">
     <figcaption>Squared correlation with the unknown truth (monthly standardised anomalies, 2001–2020).</figcaption></figure>
@@ -176,8 +188,12 @@
   <p>Anticipatory-action drought triggers are usually percentile-based: a season in the bottom third of its
      own history. Each month (or 3-month total, SPI-3-like) is classed dry / normal / wet against the
      product's own 2001–2020 distribution. The table scores dry-tercile detection against GPCC:
-     <b>hit rate</b> (GPCC dry, product dry), <b>false-alarm rate</b> (product dry, GPCC not), and the
-     <b>Peirce skill score</b> PSS = hit − false alarm (0 = no skill, 1 = perfect). The "GPCC's
+     <b>hit rate</b> (share of GPCC's dry seasons the product also calls dry), <b>false-detection rate</b>
+     (share of GPCC's non-dry seasons the product calls dry), and the
+     <b>Peirce skill score</b> PSS = hit rate − false-detection rate (0 = no skill, 1 = perfect). The
+     <b>false-alarm ratio</b> is the share of the product's own dry calls that GPCC does not call dry — the
+     number to read as "how often a trigger on this product would fire wrongly". Only months where GPCC's
+     climatology is at least 10 mm (30 mm for 3-month totals) are scored. The "GPCC's
      climatology" variant classes the product's values against GPCC's thresholds instead, which is where a
      mean bias starts to bite. With 20 years per calendar month, single-cell scores are noisy; regional
      values pool all cells and months.</p>
@@ -289,7 +305,7 @@
         measures.</li>
     <li><b>Trends.</b> Sen's slope with a Mann–Kendall test whose variance is inflated for lag-1
         autocorrelation (AR(1) effective sample size with small-sample bias correction; simulated
-        false-positive rate 4–6% at nominal 5%). Field significance by Benjamini–Hochberg at q = 0.1
+        false-positive rate 4–7% at nominal 5%). Field significance by Benjamini–Hochberg at q = 0.1
         (Wilks 2016). 38 years of annual totals detect roughly ≥ 10% per decade; 25 years, far less —
         a non-significant trend is "not detectable", not "no trend". Difference series (A − B) remove
         the shared climate signal and are far more sensitive to artefacts.</li>

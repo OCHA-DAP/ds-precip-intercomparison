@@ -156,12 +156,16 @@ def main() -> None:
         regions[f"Köppen {k}"] = (kg == k) & common
     for g in GAUGE_CLASSES:
         regions[f"GPCC {g}"] = (gclass == g) & common
+    africa = ctry.continent.values == "Africa"
+    regions["Sahel (Africa 10–18°N)"] = africa & (lat >= 10) & (lat < 18) & common
+    regions["Sahara margin (Africa 18–22°N)"] = africa & (lat >= 18) & (lat < 22) & common
     # Regions on each product's own domain (for products/regions outside 50S-50N)
     own_regions = {"Global land (each product's own domain)": np.ones(N, bool)}
     for b in ["50–90°N", "23.5–60°S"]:
         own_regions[f"Lat {b}"] = latband == b
 
-    region_meta = {r: {"cells": int(m.sum()), "area_frac": float(w[m].sum() / w.sum())} for r, m in regions.items()}
+    region_meta = {r: {"cells": int(m.sum()), "area_frac": float(w[m].sum() / w.sum())}
+                   for r, m in {**regions, **own_regions}.items()}
 
     # rain-dominated months: CRU temperature >= 2 C where known
     tmp = d.extra.get("cru_tmp")
@@ -181,7 +185,7 @@ def main() -> None:
         fields[f"bias_{p}"] = np.where(ref_ok, cell_ratio, np.nan)
         fields[f"clim_{p}"] = clim[p]
         row = {}
-        for reg, sel in regions.items():
+        for reg, sel in {**regions, **own_regions}.items():
             sel2 = sel & ref_ok
             if sel2.sum() < 20:
                 continue
@@ -274,9 +278,13 @@ def main() -> None:
         a, b = TC_PARTNERS.get(p, (None, None))
         if a not in P or b not in P:
             continue
-        r2, _, _ = M.etc_rho2(z[p], z[a], z[b])
+        raw, _, _ = M.etc_rho2(z[p], z[a], z[b], clip=False)
+        r2 = np.where(np.isfinite(raw), np.clip(raw, 0.0, 1.0), np.nan)
         fields[f"tc_{p}"] = r2
-        tc[p] = {"partners": [a, b], "regions": {
+        fin = np.isfinite(raw) & common
+        tc[p] = {"partners": [a, b],
+                 "clipped_high_frac": float((raw[fin] > 1).mean()), "clipped_low_frac": float((raw[fin] < 0).mean()),
+                 "regions": {
             reg: {"rho2_median": float(np.nanmedian(r2[sel])), "n": int(np.isfinite(r2[sel]).sum())}
             for reg, sel in regions.items() if sel.sum() >= 20}}
     dump("tc", {"window": BIAS, "table": tc})
@@ -347,7 +355,8 @@ def main() -> None:
                                 "frac_cells_pos": float((cell["pct_dec"][sel] > 0).mean())}
             trends[wname]["products"][p] = {"regions": reg_out, "frac_cells_sig": float(np.nanmean(sig[np.isfinite(cell["p"])]))}
         # sign agreement across products available for the window
-        avail = [p for p in P if f"trend_{wname}_{p}" in fields]
+        # ASAP is CHIRPS v2 inside +-50 deg: counting both would double-vote CHIRPS v2
+        avail = [p for p in P if f"trend_{wname}_{p}" in fields and p != "asap"]
         stack = np.stack([fields[f"trend_{wname}_{p}"] for p in avail])
         fields[f"agree_pos_{wname}"] = (stack > 0).sum(0).astype(np.float32)
         fields[f"agree_n_{wname}"] = np.isfinite(stack).sum(0).astype(np.float32)

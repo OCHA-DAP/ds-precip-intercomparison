@@ -89,7 +89,7 @@ def spearman_cols(a: np.ndarray, b: np.ndarray, min_n: int = 24) -> np.ndarray:
 
 # ------------------------------------------------------------------ triple collocation
 
-def etc_rho2(x, y, z, min_n: int = 36) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def etc_rho2(x, y, z, min_n: int = 36, clip: bool = True) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Extended triple collocation (McColl et al. 2014): squared correlation of
     each of x, y, z with the unknown truth, per column. Assumes mutually
     independent, zero-mean errors and a linear relation to the truth."""
@@ -107,7 +107,11 @@ def etc_rho2(x, y, z, min_n: int = 36) -> tuple[np.ndarray, np.ndarray, np.ndarr
         ry = qxy * qyz / (qyy * qxz)
         rz = qxz * qyz / (qzz * qxy)
     bad = n < min_n
-    return tuple(np.where(bad | (r < 0), np.nan, np.minimum(r, 1.0)) for r in (rx, ry, rz))
+    if not clip:
+        return tuple(np.where(bad, np.nan, r) for r in (rx, ry, rz))
+    # sampling noise pushes estimates outside [0, 1] where the true value is near
+    # an end: clip to the bound (dropping them would bias the medians)
+    return tuple(np.where(bad, np.nan, np.clip(r, 0.0, 1.0)) for r in (rx, ry, rz))
 
 
 # ------------------------------------------------------------------ terciles
@@ -135,14 +139,17 @@ def dry_skill(cat_p: np.ndarray, cat_r: np.ndarray) -> dict[str, float]:
     m = np.isfinite(cat_p) & np.isfinite(cat_r)
     p, r = cat_p[m], cat_r[m]
     if p.size < 30:
-        return {"n": int(p.size), "hit": np.nan, "pofd": np.nan, "pss": np.nan, "kappa": np.nan}
+        return {"n": int(p.size), "hit": np.nan, "pofd": np.nan, "far": np.nan, "base": np.nan, "pss": np.nan, "kappa": np.nan}
     obs_dry, fc_dry = r == 0, p == 0
     hit = (fc_dry & obs_dry).sum() / max(obs_dry.sum(), 1)
     pofd = (fc_dry & ~obs_dry).sum() / max((~obs_dry).sum(), 1)
+    # false-alarm RATIO: share of the product's dry calls the reference does not call dry
+    far = (fc_dry & ~obs_dry).sum() / max(fc_dry.sum(), 1)
     po = (p == r).mean()
     pe = sum((p == k).mean() * (r == k).mean() for k in (0, 1, 2))
     kappa = (po - pe) / (1 - pe) if pe < 1 else np.nan
-    return {"n": int(p.size), "hit": float(hit), "pofd": float(pofd), "pss": float(hit - pofd), "kappa": float(kappa)}
+    return {"n": int(p.size), "hit": float(hit), "pofd": float(pofd), "far": float(far), "base": float(obs_dry.mean()),
+            "pss": float(hit - pofd), "kappa": float(kappa)}
 
 
 def dry_skill_cells(cat_p: np.ndarray, cat_r: np.ndarray, min_n: int = 30) -> np.ndarray:

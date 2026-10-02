@@ -114,15 +114,15 @@ def load(end: str | None = None) -> Data:
                 i = time.get_indexer([pd.Timestamp(ym + "-01")])[0]
                 if i >= 0:
                     d.precip[prod][i] = np.nan
-    # ASAP blend: CHIRPS v2 within +-50 deg, ERA5 beyond.
-    if "chirps_v2" in d.precip and "era5" in d.precip:
-        inside = np.abs(cells["lat"]) < 50
-        d.precip["asap"] = np.where(inside[None, :], d.precip["chirps_v2"], d.precip["era5"])
     # CHIRPS cells with < half their 0.05 deg pixels valid (coasts) are dropped.
     for p in ("chirps_v2", "chirp_v2", "chirps_v3", "chirp_v3"):
         vf = d.extra.get(f"{p}_valid_frac")
         if p in d.precip and vf is not None:
             d.precip[p][:, vf < 0.5] = np.nan
+    # ASAP blend: CHIRPS v2 within +-50 deg, ERA5 beyond.
+    if "chirps_v2" in d.precip and "era5" in d.precip:
+        inside = np.abs(cells["lat"]) < 50
+        d.precip["asap"] = np.where(inside[None, :], d.precip["chirps_v2"], d.precip["era5"])
     return d
 
 
