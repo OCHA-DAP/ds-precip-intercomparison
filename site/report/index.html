@@ -174,7 +174,65 @@
 
 <section id="methods">
   <h2>Methods and caveats</h2>
-  <!-- METHODS -->
+  <h3>Data and regridding</h3>
+  <ul>
+    <li>Every product is converted to monthly totals in mm and put on one 0.5° grid. Grids that nest
+        inside 0.5° cells (CHIRPS 0.05°, IMERG 0.1°, the 0.5° gauge analyses) are block-averaged
+        exactly; GPCC Monitoring's 1° cells are repeated into their four 0.5° cells; ERA5's 0.25° grid
+        is point-centred, so each 0.5° cell takes its centre point at weight ½ and the neighbours at ¼
+        in each direction. CHIRPS cells with fewer than half their 0.05° pixels valid (coasts) are
+        dropped.</li>
+    <li>IMERG Late is summed from the team's daily operational archive (V07 Late, 1998 onward); a month
+        counts only if every day is present. CPC monthly totals likewise require every day.</li>
+    <li>The ASAP blend reproduces the JRC ASAP rainfall input as documented: CHIRPS v2 within 50° of
+        the equator, ERA5 beyond (ASAP also uses ECMWF HRES for the latest days, which a monthly
+        archive cannot reproduce; whether ASAP has since moved to CHIRPS v3 is not documented).</li>
+    <li>Land = Natural Earth 10 m land minus lakes covering ≥ 50% of the cell, Antarctica excluded
+        (61k cells). Cross-product statistics use the cells every product covers; maps show each
+        product on its own domain. All regional statistics are area-weighted (cos latitude × land
+        fraction).</li>
+    <li>Every product passed an automated fingerprint check before use (desert, rainforest, Sahel,
+        southern Africa and England annual totals and peak months), which catches unit, orientation and
+        one-month time-stamp errors.</li>
+  </ul>
+  <h3>Choices that shape the results</h3>
+  <ul>
+    <li><b>Reference.</b> GPCC Full Data is the reference for "bias", not truth. No ensemble median is
+        used: most products share GPCC's or GHCN's stations, so a median of them is anchored to the same
+        network and would flag the station-free products (CHIRP, ERA5) as outliers by construction.</li>
+    <li><b>Shared inputs.</b> IMERG Final is calibrated to GPCC monthly over land (Full Data to 2020,
+        Monitoring from 2021), so its agreement with GPCC is partly circular. CHIRPS v3's climatology
+        incorporates GPCC station normals. CRU, CPC, PREC/L, UDel and GPCC share GHCN/CLIMAT stations.
+        The station-free axes are CHIRP and ERA5.</li>
+    <li><b>Undercatch.</b> Gauges miss part of the rain and much of the snow (wind). CHIRPS v3 corrects
+        its stations for this; GPCC Full Data, CRU, CPC, PREC/L and UDel do not; ERA5 is model rainfall
+        with no undercatch at all. The headline bias is therefore also shown for rain months only
+        (CRU temperature ≥ 2 °C), where the correction is 5–10%, and with all gauge products lifted by
+        the Legates–Willmott factors as a sensitivity — not as a "true" footing.</li>
+    <li><b>Ratios, not mean ratios.</b> Relative bias is Σ product ÷ Σ reference over paired months, which
+        stays finite in dry places; cells with &lt; 50 mm/year in GPCC are excluded from relative
+        measures.</li>
+    <li><b>Trends.</b> Sen's slope with a Mann–Kendall test whose variance is inflated for lag-1
+        autocorrelation (AR(1) effective sample size with small-sample bias correction; simulated
+        false-positive rate 4–6% at nominal 5%). Field significance by Benjamini–Hochberg at q = 0.1
+        (Wilks 2016). 38 years of annual totals detect roughly ≥ 10% per decade; 25 years, far less —
+        a non-significant trend is "not detectable", not "no trend". Difference series (A − B) remove
+        the shared climate signal and are far more sensitive to artefacts.</li>
+    <li><b>Network change.</b> GPCC's station count falls sharply in recent years, CRU relaxes to
+        climatology where it has no stations, CPC changed its network in 2006, IMERG switched from
+        TRMM-era to GPM-era inputs in 2014 and its gauge calibration source in 2021. The drift and step
+        sections test each.</li>
+    <li><b>Terciles.</b> 20 years per calendar month is short; terciles are estimated per cell and
+        calendar month, and scores are pooled over cells and months. SPI-style 3-month totals on a
+        20-year base are below the WMO-recommended 30.</li>
+  </ul>
+  <h3>Sources</h3>
+  <p class="muted">CHIRPS/CHIRP v2.0 and v3.0 (Climate Hazards Center, UCSB); IMERG V07 Final monthly
+     (NASA GES DISC, GPM_3IMERGM) and Late daily; ERA5 monthly total precipitation (ECMWF/Copernicus);
+     GPCC Full Data Monthly v2022 and Monitoring Product v2022 (DWD); CRU TS 4.10 (UEA, Open Database
+     Licence — derived statistics only); CPC Global Unified Gauge-Based Analysis, PREC/L and UDel v5.01
+     (NOAA PSL); Legates–Willmott undercatch factors as distributed by CHC; Köppen–Geiger 1991–2020
+     (Beck et al. 2023, CC BY 4.0); Natural Earth. Code: <a href="https://github.com/OCHA-DAP/ds-precip-intercomparison">OCHA-DAP/ds-precip-intercomparison</a>.</p>
 </section>
 </main>
 </div>

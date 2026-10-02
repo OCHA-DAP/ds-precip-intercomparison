@@ -400,17 +400,24 @@ def main() -> None:
         net["imerg_final_gauge_weight"] = per_year(d.extra["imerg_gauge_weight"], lambda a: float(np.nanmean(a[:, common])) if np.isfinite(a).any() else None)
     # annual product/reference ratios on the common domain (drift view)
     drift = {}
+    ann_cache = {}
+
+    def ann(p):  # annual totals per product, computed once
+        if p not in ann_cache:
+            ann_cache[p] = M.annual_totals(d.precip[p], years, yrs_all)
+        return ann_cache[p]
+
     for refname in ("gpcc_full", "gpcc_monitoring"):
         if refname not in P:
             continue
-        R = M.annual_totals(d.precip[refname], years, yrs_all)
+        R = ann(refname)
         drift[refname] = {}
         for reg in ["All products' common domain", "Africa", "South America", "Asia", "GPCC 0 gauges", "GPCC ≥3 gauges"]:
             sel = regions[reg]
             sr = regional_series(R, w, sel)
             drift[refname][reg] = {}
             for p in P:
-                sp = regional_series(M.annual_totals(d.precip[p], years, yrs_all), w, sel)
+                sp = regional_series(ann(p), w, sel)
                 with np.errstate(invalid="ignore", divide="ignore"):
                     drift[refname][reg][p] = sp / sr
     # step tests
@@ -440,6 +447,8 @@ def main() -> None:
     ng_med = np.nanmedian(d.extra["gpcc_numgauge"][tb], 0) if "gpcc_numgauge" in d.extra else np.full(N, np.nan)
     ctab = []
     (OUT / "country").mkdir(parents=True, exist_ok=True)
+    ann_all = {p: ann(p) for p in P}
+    cm_all = {p: M.monthly_clim(d.precip[p][tb], months[tb]) for p in P}
     yrs_all_l = [int(y) for y in yrs_all]
     for iso, g in cdf.groupby("iso3"):
         if not iso or len(g) < 3:
@@ -454,10 +463,9 @@ def main() -> None:
             ok = sel & np.isfinite(clim[p])
             if ok.sum() < max(3, 0.5 * sel.sum()):
                 continue
-            ann = M.annual_totals(d.precip[p], years, yrs_all)
-            s = regional_series(ann, w, sel, min_cov=0.9)
+            s = regional_series(ann_all[p], w, sel, min_cov=0.9)
             series["annual"][p] = s
-            cm = M.monthly_clim(d.precip[p][tb], months[tb])
+            cm = cm_all[p]
             series["clim"][p] = [float(np.nansum(cm[m][ok] * w[ok]) / w[ok].sum()) for m in range(12)]
             prow = {
                 "clim": float(np.nansum(clim[p][ok] * w[ok]) / w[ok].sum()),

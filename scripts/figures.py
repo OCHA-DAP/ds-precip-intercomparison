@@ -9,9 +9,12 @@ import json
 import sys
 from pathlib import Path
 
+import logging
+
 import matplotlib
 
 matplotlib.use("Agg")
+logging.getLogger("matplotlib.font_manager").setLevel(logging.ERROR)
 import matplotlib.pyplot as plt  # noqa: E402
 import numpy as np  # noqa: E402
 from matplotlib.colors import BoundaryNorm, LinearSegmentedColormap, ListedColormap  # noqa: E402
@@ -81,11 +84,14 @@ def draw(ax, arr, land, cmap, norm, title, alpha_mask=None):
 
 
 def small_multiples(fields, keys, titles, cmap, bounds, cbar_label, out, ncol=4, sig_keys=None, extend="both",
-                    tick_labels=None):
+                    tick_labels=None, tick_mid=False):
     land = landmask(fields)
     n = len(keys)
     nrow = int(np.ceil(n / ncol))
-    fig, axes = plt.subplots(nrow, ncol, figsize=(2.6 * ncol, 1.3 * nrow + 0.55), squeeze=False)
+    if ncol == 1:
+        fig, axes = plt.subplots(1, 1, figsize=(8.0, 3.9), squeeze=False)
+    else:
+        fig, axes = plt.subplots(nrow, ncol, figsize=(2.75 * ncol, 1.38 * nrow + 0.9), squeeze=False)
     norm = BoundaryNorm(bounds, cmap.N, extend=extend)
     im = None
     for ax, k, t, sk in zip(axes.flat, keys, titles, sig_keys or [None] * n):
@@ -98,14 +104,16 @@ def small_multiples(fields, keys, titles, cmap, bounds, cbar_label, out, ncol=4,
         im = draw(ax, grid(fields, k), land, cmap, norm, t, alpha_mask=mask)
     for ax in list(axes.flat)[n:]:
         ax.set_visible(False)
-    fig.subplots_adjust(left=0.01, right=0.99, top=0.95, bottom=0.14, wspace=0.03, hspace=0.18)
+    bottom = 0.2 if ncol == 1 else 0.9 / (1.38 * nrow + 0.9)
+    fig.subplots_adjust(left=0.01, right=0.99, top=0.93 if ncol == 1 else 0.96, bottom=bottom, wspace=0.03, hspace=0.2)
     if im is not None:
-        cax = fig.add_axes([0.3, 0.06, 0.4, 0.022])
+        cax = fig.add_axes([0.25, bottom * 0.55, 0.5, bottom * 0.13])
         cb = fig.colorbar(im, cax=cax, orientation="horizontal", extend=extend)
         cb.set_label(cbar_label, fontsize=8, color=INK)
         cb.outline.set_visible(False)
         if tick_labels:
-            cb.set_ticks(bounds)
+            ticks = [(a + b) / 2 for a, b in zip(bounds[:-1], bounds[1:])] if tick_mid else bounds
+            cb.set_ticks(ticks)
             cb.set_ticklabels(tick_labels)
         cb.ax.tick_params(labelsize=7, length=2)
     FIG.mkdir(parents=True, exist_ok=True)
@@ -118,12 +126,15 @@ def main() -> None:
     f = dict(np.load(CACHE / "fields.npz"))
     meta = json.loads((DATA / "meta.json").read_text())
     P = [p["key"] for p in meta["products"]]
-    T = {p: LABEL[p] for p in P}
+    T = {p: ("ASAP blend (CHIRPS v2 / ERA5)" if p == "asap" else LABEL[p]) for p in P}
 
     # gauge density
-    small_multiples(f, ["gpcc_gauges"], ["GPCC Full Data: median gauges per 0.5° cell, 2001–2020"], SEQ,
-                    [0, 0.5, 1.5, 2.5, 5, 10, 20], "gauges per cell", "gauges.png", ncol=1, extend="max",
-                    tick_labels=["0", "", "1", "2–3", "5", "10", "20"])
+    # zero gauges gets its own warm colour: it is the class that matters most
+    # and must not be confused with the grey "no data"
+    gcmap = ListedColormap(["#f0a58a", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#184f95"])
+    small_multiples(f, ["gpcc_gauges"], ["GPCC Full Data: median gauges per 0.5° cell, 2001–2020"], gcmap,
+                    [0, 0.5, 1.5, 2.5, 5.5, 10.5, 50], "gauges per cell", "gauges.png", ncol=1, extend="neither",
+                    tick_labels=["0", "1", "2", "3–5", "6–10", ">10"], tick_mid=True)
 
     small_multiples(f, [f"clim_{p}" for p in P], [T[p] for p in P], SEQ,
                     [0, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 5000], "mean annual precipitation 2001–2020 (mm)",
