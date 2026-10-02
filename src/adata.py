@@ -125,10 +125,22 @@ def koppen_major(cells: dict) -> np.ndarray:
     return out
 
 
+G_NEVER, G_SOME, G_MOST = "never gauged", "gauged <50% of months", "gauged ≥50% of months"
+GAUGE_CLASSES = [G_NEVER, G_SOME, G_MOST]
+
+
+def gauged_fraction(numgauge: np.ndarray, sel_t: np.ndarray) -> np.ndarray:
+    """Share of months in the window with >= 1 GPCC gauge in the cell."""
+    ng = numgauge[sel_t]
+    return np.where(np.isfinite(ng).any(0), (ng >= 1).mean(0), np.nan)
+
+
 def gauge_class(numgauge: np.ndarray, sel_t: np.ndarray) -> np.ndarray:
-    """Per-cell class from the median GPCC gauge count over the window."""
-    med = np.nanmedian(numgauge[sel_t], 0)
-    return np.where(np.isnan(med), "", np.where(med < 0.5, "0 gauges", np.where(med < 2.5, "1–2 gauges", "≥3 gauges")))
+    """Per-cell class from how often the cell had a GPCC gauge in the window.
+    (A median count would put most cells in "0" because GPCC's network
+    collapses after 2010 — gauged-then-abandoned cells are not ungauged.)"""
+    f = gauged_fraction(numgauge, sel_t)
+    return np.where(np.isnan(f), "", np.where(f == 0, G_NEVER, np.where(f < 0.5, G_SOME, G_MOST)))
 
 
 def countries(cells: dict, cache: Path) -> pd.DataFrame:

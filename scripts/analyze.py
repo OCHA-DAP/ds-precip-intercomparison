@@ -21,6 +21,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src import metrics as M  # noqa: E402
 from src.adata import (  # noqa: E402
     FAMILY,
+    G_MOST,
+    G_NEVER,
+    GAUGE_CLASSES,
+    gauged_fraction,
     GAUGE,
     LABEL,
     ROOT,
@@ -131,7 +135,7 @@ def main() -> None:
     kg = koppen_major(cells)
     tb = d.window(*BIAS)
     gclass = gauge_class(d.extra["gpcc_numgauge"], tb) if "gpcc_numgauge" in d.extra else np.full(N, "")
-    gauges_median = np.nanmedian(d.extra["gpcc_numgauge"][tb], 0) if "gpcc_numgauge" in d.extra else np.full(N, np.nan)
+    gauged_frac = gauged_fraction(d.extra["gpcc_numgauge"], tb) if "gpcc_numgauge" in d.extra else np.full(N, np.nan)
     lat = cells["lat"]
     latband = np.select(
         [lat < -23.5, lat < 0, lat < 23.5, lat < 50], ["23.5–60°S", "0–23.5°S", "0–23.5°N", "23.5–50°N"], "50–90°N"
@@ -150,7 +154,7 @@ def main() -> None:
         regions[f"{c}"] = (ctry.continent.values == c) & common
     for k in ["A Tropical", "B Arid", "C Temperate", "D Cold"]:
         regions[f"Köppen {k}"] = (kg == k) & common
-    for g in ["0 gauges", "1–2 gauges", "≥3 gauges"]:
+    for g in GAUGE_CLASSES:
         regions[f"GPCC {g}"] = (gclass == g) & common
     # Regions on each product's own domain (for products/regions outside 50S-50N)
     own_regions = {"Global land (each product's own domain)": np.ones(N, bool)}
@@ -168,7 +172,7 @@ def main() -> None:
     ref_ok = clim[REF] >= MIN_REF_ANNUAL
 
     # ---------------------------------------------------------------- bias vs GPCC
-    fields = {"gpcc_gauges": gauges_median, "common": common.astype(np.float32)}  # per-cell fields for maps
+    fields = {"gpcc_gauged_frac": gauged_frac, "common": common.astype(np.float32)}  # per-cell fields for maps
     bias_tab = {}
     for p in P:
         x = d.precip[p][tb]
@@ -195,7 +199,7 @@ def main() -> None:
 
     # pairwise ratio matrix (rows = product, cols = reference product)
     pair_bias = {}
-    for reg in ["All products' common domain", "GPCC 0 gauges", "GPCC ≥3 gauges", "Africa"]:
+    for reg in ["All products' common domain", f"GPCC {G_NEVER}", f"GPCC {G_MOST}", "Africa"]:
         sel = regions[reg] & ref_ok
         pair_bias[reg] = {a: {b: M.regional_ratio(d.precip[a][tb], d.precip[b][tb], w, sel) for b in P} for a in P}
 
@@ -250,7 +254,7 @@ def main() -> None:
             for reg, sel in regions.items() if sel.sum() >= 20
         }
     pair_sp = {}
-    for reg in ["All products' common domain", "GPCC 0 gauges", "GPCC ≥3 gauges"]:
+    for reg in ["All products' common domain", f"GPCC {G_NEVER}", f"GPCC {G_MOST}"]:
         sel = regions[reg]
         pair_sp[reg] = {}
         for a in P:
@@ -301,7 +305,7 @@ def main() -> None:
             }
             if scale == "3-month":
                 fields[f"pss3_{p}"] = M.dry_skill_cells(cats[scale][p], cref)
-    for reg in ["All products' common domain", "GPCC 0 gauges", "GPCC ≥3 gauges"]:
+    for reg in ["All products' common domain", f"GPCC {G_NEVER}", f"GPCC {G_MOST}"]:
         sel = regions[reg]
         pair_kappa[reg] = {a: {b: M.dry_skill(cats["3-month"][a][:, sel], cats["3-month"][b][:, sel])["pss"] for b in P} for a in P}
     dump("terciles", {"window": BIAS, "ref": REF, "table": terc, "pairwise_pss_3month": pair_kappa})
@@ -412,7 +416,7 @@ def main() -> None:
             continue
         R = ann(refname)
         drift[refname] = {}
-        for reg in ["All products' common domain", "Africa", "South America", "Asia", "GPCC 0 gauges", "GPCC ≥3 gauges"]:
+        for reg in ["All products' common domain", "Africa", "South America", "Asia", f"GPCC {G_NEVER}", f"GPCC {G_MOST}"]:
             sel = regions[reg]
             sr = regional_series(R, w, sel)
             drift[refname][reg] = {}
@@ -444,7 +448,7 @@ def main() -> None:
 
     # ---------------------------------------------------------------- countries
     cdf = pd.DataFrame({"iso3": ctry.iso3.values, "country": ctry.country.values, "continent": ctry.continent.values})
-    ng_med = np.nanmedian(d.extra["gpcc_numgauge"][tb], 0) if "gpcc_numgauge" in d.extra else np.full(N, np.nan)
+    ng_med = np.nanmean(d.extra["gpcc_numgauge"][tb], 0) if "gpcc_numgauge" in d.extra else np.full(N, np.nan)
     ctab = []
     (OUT / "country").mkdir(parents=True, exist_ok=True)
     ann_all = {p: ann(p) for p in P}
@@ -456,7 +460,7 @@ def main() -> None:
         sel = np.zeros(N, bool)
         sel[g.index.values] = True
         row = {"iso3": iso, "country": g.country.iloc[0], "continent": g.continent.iloc[0], "cells": int(sel.sum()),
-               "gauges_per_cell": float(np.nanmean(ng_med[sel])), "frac_gauge_free": float(np.nanmean(ng_med[sel] < 0.5)),
+               "gauges_per_cell": float(np.nanmean(ng_med[sel])), "frac_gauge_free": float(np.nanmean(gauged_frac[sel] == 0)),
                "products": {}}
         series = {"years": yrs_all_l, "annual": {}, "clim": {}}
         for p in P:

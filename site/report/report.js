@@ -418,7 +418,7 @@ function renderCountries(rows) {
   const draw = () => {
     host.querySelector(".tablewrap")?.remove();
     const t = el("table", { class: "t sortable" });
-    const cols = [["country", "Country"], ["gauges_per_cell", "Gauges / cell"], ["frac_gauge_free", "% gauge-free"], ...keys.map((k) => [k, SHORT[k]])];
+    const cols = [["country", "Country"], ["gauges_per_cell", "GPCC gauges / cell"], ["frac_gauge_free", "% cells never gauged"], ...keys.map((k) => [k, SHORT[k]])];
     const hr = el("tr");
     cols.forEach(([k, lab]) => {
       const th = el("th", keys.includes(k) ? { class: "rot" } : {}, keys.includes(k) ? el("div", {}, lab) : lab);
@@ -457,7 +457,7 @@ function renderCountries(rows) {
 
   async function explore(r) {
     const s = await getJSON(`country/${r.iso3}`);
-    $("#explorer-title").textContent = `${r.country} — ${r.cells} cells, ${fmt(r.gauges_per_cell, 1)} GPCC gauges per cell (median), ${fmt(r.frac_gauge_free * 100, 0)}% of cells gauge-free`;
+    $("#explorer-title").textContent = `${r.country} — ${r.cells} cells, ${fmt(r.gauges_per_cell, 2)} GPCC gauges per cell (mean 2001–2020), ${fmt(r.frac_gauge_free * 100, 0)}% of cells never gauged`;
     const keysA = keys.filter((k) => s.annual[k]);
     lineChart($("#explorer-annual"), { x: s.years, series: seriesFor(keysA, (k) => s.annual[k]), yLabel: "annual total (mm)" });
     lineChart($("#explorer-clim"), { x: ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"], series: seriesFor(keysA, (k) => s.clim[k]), yLabel: "mm/month, 2001–2020", height: 240 });

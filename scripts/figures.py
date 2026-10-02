@@ -129,12 +129,12 @@ def main() -> None:
     T = {p: ("ASAP blend (CHIRPS v2 / ERA5)" if p == "asap" else LABEL[p]) for p in P}
 
     # gauge density
-    # zero gauges gets its own warm colour: it is the class that matters most
+    # never-gauged gets its own warm colour: it is the class that matters most
     # and must not be confused with the grey "no data"
     gcmap = ListedColormap(["#f0a58a", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#184f95"])
-    small_multiples(f, ["gpcc_gauges"], ["GPCC Full Data: median gauges per 0.5° cell, 2001–2020"], gcmap,
-                    [0, 0.5, 1.5, 2.5, 5.5, 10.5, 50], "gauges per cell", "gauges.png", ncol=1, extend="neither",
-                    tick_labels=["0", "1", "2", "3–5", "6–10", ">10"], tick_mid=True)
+    small_multiples(f, ["gpcc_gauged_frac"], ["Share of months 2001–2020 with at least one GPCC gauge in the 0.5° cell"],
+                    gcmap, [0, 1e-6, 0.1, 0.25, 0.5, 0.75, 1.0], "share of months gauged", "gauges.png", ncol=1,
+                    extend="neither", tick_labels=["never", "<10%", "10–25%", "25–50%", "50–75%", "≥75%"], tick_mid=True)
 
     small_multiples(f, [f"clim_{p}" for p in P], [T[p] for p in P], SEQ,
                     [0, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 5000], "mean annual precipitation 2001–2020 (mm)",

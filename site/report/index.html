@@ -52,11 +52,13 @@
   <h2>How many gauges stand behind each number</h2>
   <p>Every gauge-based product — and every satellite product calibrated or blended with gauges — is only
      as good as the station network under it, and that network is neither even nor stable. Most results
-     on this page are therefore split by the number of GPCC gauges in the 0.5° cell (median month,
-     2001–2020): <b>0</b>, <b>1–2</b>, <b>≥3</b>. In zero-gauge cells GPCC itself is an interpolation, so
-     "agreement with GPCC" there is two estimates agreeing, not skill.</p>
-  <figure><img src="fig/gauges.png" alt="Map of median GPCC gauges per 0.5 degree cell." loading="lazy">
-    <figcaption>Median GPCC Full Data gauge count per 0.5° cell, 2001–2020.</figcaption></figure>
+     on this page are therefore split by how often the 0.5° cell had at least one GPCC gauge in 2001–2020:
+     <b>never gauged</b>, <b>gauged in under half of the months</b>, <b>gauged in at least half</b>. In
+     never-gauged cells GPCC itself is an interpolation from neighbouring cells, so "agreement with GPCC"
+     there is two estimates agreeing, not skill. (Classing by the median gauge count would call most cells
+     ungauged: GPCC's network shrinks so much after 2010 that cells gauged for a decade fall to zero.)</p>
+  <figure><img src="fig/gauges.png" alt="Map of the share of months 2001–2020 with at least one GPCC gauge per 0.5 degree cell." loading="lazy">
+    <figcaption>Share of months 2001–2020 with at least one GPCC Full Data gauge in the 0.5° cell. Orange = never.</figcaption></figure>
   <h3>Network size over time</h3>
   <div id="station-chart"></div>
   <div id="network-chart"></div>
@@ -183,10 +185,13 @@
         in each direction. CHIRPS cells with fewer than half their 0.05° pixels valid (coasts) are
         dropped.</li>
     <li>IMERG Late is summed from the team's daily operational archive (V07 Late, 1998 onward); a month
-        counts only if every day is present. CPC monthly totals likewise require every day.</li>
+        counts only if every day is present. CPC monthly totals likewise require every day, which drops
+        February 2007 (one day missing globally) and with it CPC's 2007 annual total.</li>
     <li>The ASAP blend reproduces the JRC ASAP rainfall input as documented: CHIRPS v2 within 50° of
         the equator, ERA5 beyond (ASAP also uses ECMWF HRES for the latest days, which a monthly
-        archive cannot reproduce; whether ASAP has since moved to CHIRPS v3 is not documented).</li>
+        archive cannot reproduce; whether ASAP has since moved to CHIRPS v3 is not documented). Inside
+        the 50°S–50°N common domain the blend <i>is</i> CHIRPS v2, so it only differs in the poleward
+        latitude-band results.</li>
     <li>Land = Natural Earth 10 m land minus lakes covering ≥ 50% of the cell, Antarctica excluded
         (61k cells). Cross-product statistics use the cells every product covers; maps show each
         product on its own domain. All regional statistics are area-weighted (cos latitude × land
