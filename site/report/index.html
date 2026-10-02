@@ -196,8 +196,9 @@
         in each direction. CHIRPS cells with fewer than half their 0.05° pixels valid (coasts) are
         dropped.</li>
     <li>IMERG Late is summed from the team's daily operational archive (V07 Late, 1998 onward); a month
-        counts only if every day is present. CPC monthly totals likewise require every day, which drops
-        February 2007 (one day missing globally) and with it CPC's 2007 annual total.</li>
+        counts only if every day is present. CPC's record (as served by NOAA PSL) is missing single days
+        globally in several months — 1981–1992 outside the Americas, February 2007 — so CPC months with
+        at most two missing days are scaled to the full month (total × days in month ÷ valid days).</li>
     <li>The ASAP blend reproduces the JRC ASAP rainfall input as documented: CHIRPS v2 within 50° of
         the equator, ERA5 beyond (ASAP also uses ECMWF HRES for the latest days, which a monthly
         archive cannot reproduce; whether ASAP has since moved to CHIRPS v3 is not documented). Inside

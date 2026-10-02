@@ -398,7 +398,10 @@ def build_cpc(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
         print(f"[cpc] {y}: max valid days per month {cnt.max(('lat', 'lon')).values.tolist()}", flush=True)
         tot = da.resample(time="MS").sum(min_count=1)
         dim = xr.DataArray([ndays(pd.Timestamp(t)) for t in tot.time.values], coords={"time": tot.time})
-        parts.append(tot.where(cnt == dim))
+        # PSL's CPC record is missing single days globally in several months
+        # (1981-1992 outside the Americas, Feb 2007): accept <= 2 missing days and
+        # scale to the full month rather than dropping the month.
+        parts.append((tot * dim / cnt).where(cnt >= dim - 2))
         dest.unlink()
         print(f"[cpc] {y} done", flush=True)
     da = normalise(xr.concat(parts, "time"))

@@ -60,7 +60,7 @@ TC_PARTNERS = {
     "imerg_final": ("chirp_v3", "era5"),
     "chirps_v2": ("imerg_late", "era5"),
     "chirps_v3": ("imerg_late", "era5"),
-    "asap": ("imerg_late", "gpcc_full"),
+    "asap": ("imerg_late", "era5"),  # = CHIRPS v2 in the common domain; GPCC shares its stations
 }
 
 DIFF_PAIRS_LONG = [
