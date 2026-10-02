@@ -8,3 +8,6 @@ cache/
 *.tif
 *.h5
 .databricks/
+site/report/data/
+site/report/fig/
+_site/

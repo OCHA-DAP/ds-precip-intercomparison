@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Precipitation Products Compared</title>
+<meta name="description" content="Global, land-only, monthly comparison of CHIRPS, IMERG, ERA5 and gauge analyses: relative biases, agreement, dry-tercile detection and trends.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+<a class="home-link" href="../">← Precipitation intercomparison</a>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">OCHA Centre for Humanitarian Data · analysis</p>
+  <h1>How much do observed rainfall products disagree?</h1>
+  <p>A global, land-only, monthly comparison of the satellite, reanalysis and gauge products the team
+     uses or could use for anticipatory-action triggers: CHIRPS (v2 and v3, with and without stations),
+     IMERG (Final and the operational Late run), ERA5, the JRC ASAP blend, and six gauge analyses.
+     Relative biases, agreement on monthly anomalies, agreement on dry terciles, and trends — with every
+     result split by how many rain gauges actually stand behind it.</p>
+</header>
+<nav class="toc">
+  <a href="#findings">Findings</a><a href="#products">Products</a><a href="#gauges">Gauges</a>
+  <a href="#bias">Bias</a><a href="#agreement">Anomalies</a><a href="#tc">Triple collocation</a>
+  <a href="#terciles">Dry terciles</a><a href="#trends">Trends</a><a href="#drift">Drift &amp; breaks</a>
+  <a href="#countries">Countries</a><a href="#methods">Methods</a>
+</nav>
+<main>
+<p id="fatal" class="callout" hidden></p>
+
+<section id="findings">
+  <h2>Main findings</h2>
+  <!-- FINDINGS -->
+</section>
+
+<section id="products">
+  <h2>Products</h2>
+  <p>All products are converted to monthly totals (mm) on a common 0.5° grid and compared over land
+     between 60°S and the pole (Antarctica excluded). Cross-product statistics use the cells every
+     product covers (CHIRPS v2 limits this to 50°S–50°N); maps show each product on its own domain.
+     Line styles below are used in every chart: the same colour is one product family, a dashed line its
+     station-free or near-real-time sibling.</p>
+  <div id="products-table"></div>
+  <figure><img src="fig/climatology.png" alt="Small-multiple maps of mean annual precipitation 2001–2020 for each product." loading="lazy">
+    <figcaption>Mean annual precipitation 2001–2020 (UDel: 2001–2017). Grey = land without data.</figcaption></figure>
+</section>
+
+<section id="gauges">
+  <h2>How many gauges stand behind each number</h2>
+  <p>Every gauge-based product — and every satellite product calibrated or blended with gauges — is only
+     as good as the station network under it, and that network is neither even nor stable. Most results
+     on this page are therefore split by the number of GPCC gauges in the 0.5° cell (median month,
+     2001–2020): <b>0</b>, <b>1–2</b>, <b>≥3</b>. In zero-gauge cells GPCC itself is an interpolation, so
+     "agreement with GPCC" there is two estimates agreeing, not skill.</p>
+  <figure><img src="fig/gauges.png" alt="Map of median GPCC gauges per 0.5 degree cell." loading="lazy">
+    <figcaption>Median GPCC Full Data gauge count per 0.5° cell, 2001–2020.</figcaption></figure>
+  <h3>Network size over time</h3>
+  <div id="station-chart"></div>
+  <div id="network-chart"></div>
+  <p class="muted">GPCC Monitoring counts are for its 1° cell, repeated to the four 0.5° cells inside it.
+     CRU counts stations within its correlation-decay distance, not inside the cell; where none are in range
+     CRU relaxes to its 1961–90 climatology, which by construction carries no anomaly and no trend.</p>
+</section>
+
+<section id="bias">
+  <h2>Relative bias</h2>
+  <p>Bias is the ratio of totals over 2001–2020 (Σ product ÷ Σ reference, paired months), area-weighted
+     within a region. Cells where GPCC's climatology is below 50 mm/year are left out of relative
+     measures. The reference here is <b>GPCC Full Data</b> — not because it is truth, but because it is
+     the densest gauge analysis; the pairwise matrix below gives the same comparison against every other
+     product, including the two that use no gauges at all (CHIRP and ERA5).</p>
+  <div id="bias-table"></div>
+  <figure><img src="fig/bias_vs_gpcc.png" alt="Small-multiple maps of each product's ratio to GPCC 2001–2020." loading="lazy">
+    <figcaption>Ratio to GPCC Full Data, 2001–2020. Red = drier than GPCC, blue = wetter.</figcaption></figure>
+  <h3>Every product against every other</h3>
+  <div id="bias-pairwise"></div>
+  <h3>Is CHIRPS v3 wetter because of undercatch correction?</h3>
+  <p>CHIRPS v3 corrects its station data for wind-induced gauge undercatch (Legates–Willmott factors);
+     CHIRPS v2 and the gauge analyses do not. If the v3/v2 difference is the correction, the cell-level
+     v3/v2 ratio should follow the correction factor. <span id="undercatch-text"></span></p>
+  <figure><img src="fig/undercatch_check.png" alt="Maps of CHIRPS v3 over v2 ratio and the Legates-Willmott factor." loading="lazy"></figure>
+</section>
+
+<section id="agreement">
+  <h2>Agreement on monthly anomalies</h2>
+  <p>Bias says whether a product is wetter or drier on average; for triggers what matters more is whether
+     it gets the <i>anomalies</i> right — which months are unusually wet or dry. Each product's months
+     are converted to standardised anomalies against its own 2001–2020 climatology (calendar month by
+     calendar month), restricted to months where GPCC's climatology is at least 10 mm, and correlated
+     with GPCC's (Spearman). The variability ratio compares the size of the anomalies.</p>
+  <div id="agree-table"></div>
+  <figure><img src="fig/spearman_vs_gpcc.png" alt="Small-multiple maps of anomaly correlation with GPCC." loading="lazy">
+    <figcaption>Spearman correlation of monthly standardised anomalies with GPCC Full Data, 2001–2020.</figcaption></figure>
+  <h3>Pairwise</h3>
+  <div id="agree-pairwise"></div>
+</section>
+
+<section id="tc">
+  <h2>Triple collocation: error without a reference</h2>
+  <p>Comparing against GPCC rewards products that share GPCC's stations. Triple collocation (extended form,
+     McColl et al. 2014) instead estimates, for three products with mutually independent errors, how well
+     each correlates with the unknown truth. Each product is paired with two partners chosen so their
+     errors are plausibly independent of it (bracketed). Assumptions are imperfect — CHIRP's climatology
+     uses GPCC station normals (anomalies largely remove this), IMERG Final and CHIRP share infrared
+     inputs — so read differences of a few hundredths as ties.</p>
+  <div id="tc-table"></div>
+  <figure><img src="fig/tc_rho2.png" alt="Small-multiple maps of triple-collocation squared correlation with truth." loading="lazy">
+    <figcaption>Squared correlation with the unknown truth (monthly standardised anomalies, 2001–2020).</figcaption></figure>
+</section>
+
+<section id="terciles">
+  <h2>Do products agree on dry terciles?</h2>
+  <p>Anticipatory-action drought triggers are usually percentile-based: a season in the bottom third of its
+     own history. Each month (or 3-month total, SPI-3-like) is classed dry / normal / wet against the
+     product's own 2001–2020 distribution. The table scores dry-tercile detection against GPCC:
+     <b>hit rate</b> (GPCC dry, product dry), <b>false-alarm rate</b> (product dry, GPCC not), and the
+     <b>Peirce skill score</b> PSS = hit − false alarm (0 = no skill, 1 = perfect). The "GPCC's
+     climatology" variant classes the product's values against GPCC's thresholds instead, which is where a
+     mean bias starts to bite. With 20 years per calendar month, single-cell scores are noisy; regional
+     values pool all cells and months.</p>
+  <div id="terc-table"></div>
+  <figure><img src="fig/pss3_vs_gpcc.png" alt="Small-multiple maps of dry-tercile Peirce skill score against GPCC." loading="lazy">
+    <figcaption>Peirce skill score for detecting GPCC's dry 3-month terciles, 2001–2020.</figcaption></figure>
+  <h3>Pairwise (3-month, own climatology)</h3>
+  <div id="terc-pairwise"></div>
+</section>
+
+<section id="trends">
+  <h2>Trends</h2>
+  <p>Sen's slope of annual totals with a Mann–Kendall test corrected for autocorrelation, as % of the
+     mean per decade, for 1983–2020 (long-record products) and 2001–2025 (adds IMERG and GPCC
+     Monitoring; GPCC Full Data ends in 2020). Maps fade cells that are not significant after
+     false-discovery-rate control (Benjamini–Hochberg, q = 0.1). Regional values use the area-weighted
+     regional annual series.</p>
+  <div id="trend-table"></div>
+  <figure><img src="fig/trend_long.png" alt="Small-multiple maps of 1983–2020 trends per product." loading="lazy">
+    <figcaption>Trend in annual totals 1983–2020 (% of mean per decade). Faded = not significant (FDR 10%).</figcaption></figure>
+  <figure><img src="fig/trend_agreement_long.png" alt="Map of the share of products with an increasing trend." loading="lazy">
+    <figcaption>Share of products with an increasing 1983–2020 trend. Red/blue = products agree on the sign; grey = they split.</figcaption></figure>
+  <figure><img src="fig/trend_recent.png" alt="Small-multiple maps of 2001–2025 trends per product." loading="lazy">
+    <figcaption>Trend in annual totals 2001–2025.</figcaption></figure>
+  <h3>Trends of the difference between two products</h3>
+  <p>A trend in product A minus product B removes the climate signal both share and isolates how the two
+     drift apart — the most sensitive test of an artefact. CHIRPS − CHIRP isolates what the station
+     blending adds; ERA5 − GPCC and CHIRP − GPCC compare the two gauge-independent axes against the
+     gauge network.</p>
+  <div id="diff-table"></div>
+  <figure><img src="fig/difference_trends.png" alt="Small-multiple maps of difference-series trends." loading="lazy"></figure>
+</section>
+
+<section id="drift">
+  <h2>Drift and breaks</h2>
+  <p>Annual totals divided by the reference's, by region. A flat line at a constant ratio is a stable bias;
+     a slope or a step is drift — in the product, the reference, or both.</p>
+  <div id="drift-chart"></div>
+  <h3>Step tests at known changes</h3>
+  <div id="steps-table"></div>
+</section>
+
+<section id="countries">
+  <h2>By country</h2>
+  <p>Country values are area-weighted over the 0.5° land cells assigned to the country (majority of the
+     cell; countries with fewer than 3 cells are omitted). Click a row for its annual series and seasonal
+     cycle. Trend markers: • = p &lt; 0.05.</p>
+  <div id="country-table"></div>
+  <div id="explorer">
+    <h3 id="explorer-title"></h3>
+    <div class="two"><div id="explorer-annual"></div><div id="explorer-clim"></div></div>
+  </div>
+</section>
+
+<section id="methods">
+  <h2>Methods and caveats</h2>
+  <!-- METHODS -->
+</section>
+</main>
+</div>
+<script src="report.js"></script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+name: Deploy Pages
+
+# Generated report data/figures are NOT in git: scripts/analyze.py + figures.py
+# write them, scripts/site_blob.py upload parks them on the dev blob with a
+# sha256 manifest, and this workflow downloads + verifies them into the artifact.
+on:
+  push:
+    branches: [main]
+    paths: ["pages/**", "site/report/*.html", "site/report/*.js", "site/report/*.css", "scripts/site_blob.py", ".github/workflows/deploy-pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Download report outputs from blob (sha256-verified)
+        env:
+          DSCI_AZ_BLOB_DEV_SAS: ${{ secrets.DSCI_AZ_BLOB_DEV_SAS }}
+        run: uv run --no-project --with "ocha-stratus>=0.1.8" python scripts/site_blob.py download
+      - name: Assemble site
+        run: |
+          mkdir -p _site/report
+          cp -r pages/. _site/
+          cp site/report/index.html site/report/report.js site/report/report.css _site/report/
+          cp -r site/report/data site/report/fig _site/report/
+          test -f _site/report/data/meta.json && test -f _site/report/fig/bias_vs_gpcc.png
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

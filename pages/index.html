@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Precipitation Intercomparison — OCHA Centre for Humanitarian Data</title>
+<meta name="description" content="How CHIRPS, IMERG, ERA5 and gauge analyses differ in bias, anomalies, dry terciles and trends — globally, monthly, over land.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="hero">
+    <canvas id="bg" aria-hidden="true"></canvas>
+    <div class="inner">
+      <p class="eyebrow">OCHA Centre for Humanitarian Data</p>
+      <h1>Precipitation Intercomparison</h1>
+      <p>Our triggers read rainfall from one product at a time. This work asks how much the choice
+         matters: a global, monthly, land-only comparison of CHIRPS, IMERG, ERA5, the JRC ASAP blend
+         and six gauge analyses — biases, agreement on anomalies and dry terciles, and trends, split by
+         how many rain gauges stand behind each number.</p>
+    </div>
+  </header>
+  <main>
+    <p class="label">Analysis</p>
+    <div class="grid grid-one">
+      <a class="k" href="report/">
+        <h2>How much do observed rainfall products disagree?</h2>
+        <p>Relative bias against gauges and against each other, monthly anomaly agreement, triple
+           collocation, dry-tercile detection (the anticipatory-action view), trends 1983–2020 and
+           2001–2025, drift and known breaks, and a per-country explorer.</p>
+        <span class="foot"><em>/report/</em><span>October 2026</span></span>
+      </a>
+    </div>
+    <p class="label label-2">Code</p>
+    <div class="grid">
+      <a class="k" href="https://github.com/OCHA-DAP/ds-precip-intercomparison">
+        <h2>Source repository<span class="chip chip-ext">GitHub</span></h2>
+        <p>Ingest (Databricks), 0.5° regridding, metrics and this site. The regridded cubes live on the
+           team's dev blob; the README lists every source.</p>
+        <span class="foot"><em>OCHA-DAP/ds-precip-intercomparison</em></span>
+      </a>
+    </div>
+  </main>
+  <div class="note">
+    <p><strong>Access.</strong> Everything listed here is public. All inputs are openly published
+       products; CRU TS (ODbL) appears only as derived statistics.</p>
+  </div>
+</div>
+<script src="assets/hero.js"></script>
+</body>
+</html>
