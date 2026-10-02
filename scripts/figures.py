@@ -181,8 +181,11 @@ def main() -> None:
     if dk:
         titles = [k.replace("difftrend_long_", "1983–2020: ").replace("difftrend_recent_", "2001–2025: ")
                   .replace("_minus_", " − ") for k in dk]
-        for p in sorted(P, key=len, reverse=True):
-            titles = [t.replace(p, T[p].split(" (")[0]) for t in titles]
+        short = {"gpcc_full": "GPCC", "gpcc_monitoring": "GPCC Mon.", "cru": "CRU", "cpc": "CPC", "precl": "PREC/L",
+                 "imerg_final": "IMERG Final", "imerg_late": "IMERG Late", "chirps_v2": "CHIRPS v2", "chirp_v2": "CHIRP v2",
+                 "chirps_v3": "CHIRPS v3", "chirp_v3": "CHIRP v3", "era5": "ERA5"}
+        for p in sorted(short, key=len, reverse=True):
+            titles = [t.replace(p, short[p]) for t in titles]
         small_multiples(f, dk, titles, DIV, trend_b,
                         "trend of the difference A − B (% of B's mean per decade)", "difference_trends.png", ncol=3)
 
