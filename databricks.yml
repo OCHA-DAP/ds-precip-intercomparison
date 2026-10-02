@@ -1,0 +1,219 @@
+# Databricks Asset Bundle — ds-precip-intercomparison
+#
+# One unscheduled job that builds every product on the common 0.5 deg grid and
+# writes it to the DEV blob (projects/ds-precip-intercomparison/processed/...).
+# Each task runs scripts/ingest.py <product> through databricks/run_task.py
+# (sets STAGE, copies src/ + scripts/ to local disk). Credentials come from the
+# Job Compute policy (DSCI_AZ_BLOB_*, IMERG_USERNAME/PASSWORD for Earthdata).
+#
+# Data plane is dev by design (analysis inputs, not a prod product), so the prod
+# target still runs with stage=dev — the two axes are independent
+# (KB infrastructure/databricks.md).
+#
+#   databricks bundle validate -t prod -p default
+#   databricks bundle deploy   -t prod -p default
+#   databricks bundle run precip_ingest -t prod -p default
+#
+# Task chains are serialised per source server (UCSB/CHC, NOAA PSL, DWD, UEA)
+# to stay polite; the three clusters run in parallel.
+
+bundle:
+  name: ds-precip-intercomparison
+
+variables:
+  git_branch:
+    description: Repo branch the job pulls the code from
+    default: main
+  stage:
+    description: ocha-stratus data plane — this project writes dev only
+    default: dev
+
+.git_source: &git_source
+  git_url: https://github.com/OCHA-DAP/ds-precip-intercomparison.git
+  git_provider: gitHub
+  git_branch: ${var.git_branch}
+
+.cluster_spec: &cluster_spec
+  policy_id: "000C79D951EAF0D6"
+  apply_policy_default_values: true
+  num_workers: 1
+
+.libs: &libs
+  - pypi: { package: "ocha-stratus>=0.1.8" }
+  - pypi: { package: "h5py" }
+  - pypi: { package: "netcdf4" }
+
+resources:
+  jobs:
+    precip_ingest:
+      name: Precip Intercomparison Ingest
+      description: >
+        One-off: download CHIRPS v2/v3, CHIRP v2/v3, IMERG Final/Late, ERA5, GPCC Full/Monitoring,
+        CRU TS, CPC Unified, PREC/L, UDel; regrid to 0.5 deg monthly; write NetCDF to dev blob.
+      git_source: *git_source
+      tags:
+        databricks: job
+        blob_container: projects
+      permissions:
+        - group_name: dsci
+          level: CAN_MANAGE
+      max_concurrent_runs: 1
+      timeout_seconds: 21600
+      parameters:
+        - name: stage
+          default: ${var.stage}
+      job_clusters:
+        - job_cluster_key: chc
+          new_cluster: *cluster_spec
+        - job_cluster_key: nasa
+          new_cluster: *cluster_spec
+        - job_cluster_key: gauges
+          new_cluster: *cluster_spec
+
+      tasks:
+        # --- CHC (UCSB): two chains -------------------------------------------
+        - task_key: chirps_v2
+          job_cluster_key: chc
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v2"]
+        - task_key: chirp_v2
+          depends_on: [{ task_key: chirps_v2 }]
+          run_if: ALL_DONE
+          job_cluster_key: chc
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v2"]
+        - task_key: chirps_v3
+          job_cluster_key: chc
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3"]
+        - task_key: chirp_v3
+          depends_on: [{ task_key: chirps_v3 }]
+          run_if: ALL_DONE
+          job_cluster_key: chc
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v3"]
+        - task_key: chirps_v3_diag
+          depends_on: [{ task_key: chirp_v3 }]
+          run_if: ALL_DONE
+          job_cluster_key: chc
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3_diag"]
+
+        # --- NASA GES DISC + team IMERG archive --------------------------------
+        - task_key: imerg_final
+          job_cluster_key: nasa
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_final"]
+        - task_key: imerg_late
+          job_cluster_key: nasa
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_late", "--workers", "12"]
+
+        # --- gauges, ERA5, static aux -----------------------------------------
+        - task_key: static
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "static"]
+        - task_key: era5
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "era5"]
+        - task_key: gpcc_full
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_full"]
+        - task_key: gpcc_monitoring
+          depends_on: [{ task_key: gpcc_full }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_monitoring"]
+        - task_key: cru
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru"]
+        - task_key: cru_tmp
+          depends_on: [{ task_key: cru }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru_tmp"]
+        - task_key: cpc
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cpc"]
+        - task_key: precl
+          depends_on: [{ task_key: cpc }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "precl"]
+        - task_key: udel
+          depends_on: [{ task_key: precl }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "udel"]
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      profile: default
+
+  prod:
+    mode: production
+    workspace:
+      profile: default
+      root_path: /Workspace/Users/adm.tdowning@global.un.org/.bundle/${bundle.name}/${bundle.target}
+    run_as:
+      user_name: adm.tdowning@global.un.org

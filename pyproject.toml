@@ -1,0 +1,21 @@
+[project]
+name = "ds-precip-intercomparison"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "h5netcdf>=1.8.1",
+    "h5py>=3.16.0",
+    "matplotlib>=3.11.2",
+    "netcdf4>=1.7.4",
+    "numpy>=2.5.3",
+    "ocha-stratus>=0.1.8",
+    "pandas>=3.0.6",
+    "rasterio>=1.4.3,<1.5",
+    "requests>=2.34.2",
+    "rioxarray>=0.23.0",
+    "scipy>=1.18.1",
+    "xarray>=2026.9.0",
+]
+
+[tool.uv]
+environments = ["sys_platform == 'darwin' and platform_machine == 'arm64'", "sys_platform == 'linux' and platform_machine == 'x86_64'"]
