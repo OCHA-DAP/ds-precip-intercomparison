@@ -24,7 +24,7 @@ import xarray as xr
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.aux import build_chirps_v3_diag, build_static  # noqa: E402
-from src.constants import INGEST_START, aux_blob, grid_blob  # noqa: E402
+from src.constants import INGEST_START, PROJECT_PREFIX  # noqa: E402
 from src.products import BUILDERS, default_workdir  # noqa: E402
 
 AUX = {"static", "chirps_v3_diag"}
@@ -64,6 +64,30 @@ def fingerprint(ds: xr.Dataset, product: str) -> list[str]:
     return problems
 
 
+def check_static(ds: xr.Dataset) -> list[str]:
+    """An inverted or empty land mask would silently corrupt every comparison."""
+    lf = ds["landfrac"]
+    probs = []
+    for name, lat, lon, lo, hi in (
+        ("Antarctica", -80.25, 0.25, 0.95, 1.0),
+        ("Sahara", 23.25, 8.75, 0.95, 1.0),
+        ("central Pacific", 0.25, -150.25, 0.0, 0.05),
+    ):
+        v = float(lf.sel(lat=lat, lon=lon))
+        print(f"  [check] landfrac {name}: {v:.2f}")
+        if not lo <= v <= hi:
+            probs.append(f"landfrac {name} = {v:.2f}")
+    m = float(lf.mean())
+    print(f"  [check] landfrac global unweighted mean {m:.3f}")
+    if not 0.30 <= m <= 0.38:
+        probs.append(f"landfrac mean {m:.3f}")
+    agree = float(((ds["koppen"] > 0) == (lf >= 0.5)).mean())
+    print(f"  [check] koppen>0 vs landfrac>=0.5 agreement {agree:.3f}")
+    if agree < 0.95:
+        probs.append(f"koppen/landfrac agreement {agree:.3f}")
+    return probs
+
+
 def write_nc(ds: xr.Dataset, path: Path) -> None:
     enc = {}
     for v, da in ds.data_vars.items():
@@ -77,14 +101,19 @@ def write_nc(ds: xr.Dataset, path: Path) -> None:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("product", choices=sorted(set(BUILDERS) | AUX))
-    ap.add_argument("--start", default=INGEST_START)
-    ap.add_argument("--end", default=(pd.Timestamp.today() - pd.offsets.MonthBegin(1)).strftime("%Y-%m"))
+    ap.add_argument("--start", default="")
+    ap.add_argument("--end", default="", help="last month YYYY-MM (default: last complete month)")
+    ap.add_argument("--subdir", default="", help="blob subfolder override, e.g. 'smoke' for test runs")
     ap.add_argument("--workers", type=int, default=6)
     ap.add_argument("--no-upload", action="store_true")
     ap.add_argument("--no-check", action="store_true")
     ap.add_argument("--out", type=Path, help="local output path (default: workdir/<product>.nc)")
     args = ap.parse_args()
 
+    if not args.end:
+        args.end = str(pd.Timestamp.today().to_period("M") - 1)
+    if not args.start:
+        args.start = INGEST_START
     stage = os.environ.get("STAGE", "dev")
     if stage != "dev" and not args.no_upload:
         raise SystemExit("this project writes the DEV blob only (STAGE=dev)")
@@ -93,28 +122,32 @@ def main() -> None:
     t0 = time.time()
     print(f"[ingest] {args.product} {args.start}..{args.end} workdir={workdir}", flush=True)
 
+    aux = args.product in AUX
+    sub = args.subdir or ("aux05" if aux else "grid05")
+    blob = f"{PROJECT_PREFIX}/processed/{sub}/{args.product}.nc"
     if args.product == "static":
-        ds, blob = build_static(workdir), aux_blob("static")
+        ds = build_static(workdir)
     elif args.product == "chirps_v3_diag":
         ds = build_chirps_v3_diag(args.start, args.end, workdir, workers=args.workers)
-        blob = aux_blob("chirps_v3_diag")
     else:
         ds = BUILDERS[args.product](args.start, args.end, workdir, workers=args.workers)
-        blob = grid_blob(args.product)
         ds.attrs["product"] = args.product
         print(f"[ingest] {args.product}: {ds.sizes['time']} months "
               f"{pd.Timestamp(ds.time.values[0]):%Y-%m}..{pd.Timestamp(ds.time.values[-1]):%Y-%m}", flush=True)
-        if args.product != "cru_tmp" and not args.no_check:
-            problems = fingerprint(ds, args.product)
-            if problems:
-                raise SystemExit(f"fingerprint check failed for {args.product}: {problems}")
 
-    ds.attrs["built"] = pd.Timestamp.utcnow().isoformat()
+    ds.attrs["built"] = pd.Timestamp.now(tz="UTC").isoformat()
     out = args.out or (workdir / f"{args.product}.nc")
-    write_nc(ds, out)
-    size = out.stat().st_size / 1e6
-    print(f"[ingest] wrote {out} ({size:.0f} MB) in {time.time() - t0:.0f}s", flush=True)
+    write_nc(ds, out)  # write BEFORE checking: a failed check still leaves an artefact
+    print(f"[ingest] wrote {out} ({out.stat().st_size / 1e6:.0f} MB) in {time.time() - t0:.0f}s", flush=True)
 
+    problems = []
+    if not args.no_check:
+        if args.product == "static":
+            problems = check_static(ds)
+        elif args.product not in ("cru_tmp", "chirps_v3_diag"):
+            problems = fingerprint(ds, args.product)
+    if problems:
+        blob = f"{PROJECT_PREFIX}/processed/failed/{args.product}.nc"
     if not args.no_upload:
         import ocha_stratus as stratus
 
@@ -123,6 +156,8 @@ def main() -> None:
         print(f"[ingest] uploaded -> dev projects/{blob}", flush=True)
         if args.out is None:
             shutil.rmtree(workdir, ignore_errors=True)
+    if problems:
+        raise SystemExit(f"check failed for {args.product} (file kept at {blob}): {problems}")
 
 
 if __name__ == "__main__":

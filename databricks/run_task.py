@@ -110,9 +110,11 @@ def _resolve_secrets(env, names, optional=False):
 def main(argv=None):
     args = _parse(sys.argv[1:] if argv is None else argv)
     repo_root = os.path.abspath(os.path.join(_find_script_dir(), ".."))
+    # Per-process copy: tasks sharing a job cluster start concurrently, and one
+    # task's copytree must not race another task's imports.
     local_root = os.path.join(
         "/local_disk0" if os.path.isdir("/local_disk0") else tempfile.gettempdir(),
-        _LOCAL_DIR,
+        f"{_LOCAL_DIR}_{os.getpid()}",
     )
     for sub in _COPY_DIRS:
         shutil.copytree(

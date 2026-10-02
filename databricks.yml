@@ -14,8 +14,11 @@
 #   databricks bundle deploy   -t prod -p default
 #   databricks bundle run precip_ingest -t prod -p default
 #
-# Task chains are serialised per source server (UCSB/CHC, NOAA PSL, DWD, UEA)
-# to stay polite; the three clusters run in parallel.
+# Task chains are serialised per source server (UCSB/CHC, NOAA PSL, DWD, UEA) to
+# stay polite and to bound memory on each single-node cluster (3 chains max per
+# cluster); the three clusters run in parallel. Smoke test first:
+#   databricks bundle run precip_ingest -t prod -p default \
+#     --params start=2010-01,end=2010-12,subdir=smoke
 
 bundle:
   name: ds-precip-intercomparison
@@ -58,10 +61,17 @@ resources:
         - group_name: dsci
           level: CAN_MANAGE
       max_concurrent_runs: 1
-      timeout_seconds: 21600
+      timeout_seconds: 36000
       parameters:
         - name: stage
           default: ${var.stage}
+        # smoke run: start=2010-01 end=2010-12 subdir=smoke ; full run: all empty
+        - name: start
+          default: ""
+        - name: end
+          default: ""
+        - name: subdir
+          default: ""
       job_clusters:
         - job_cluster_key: chc
           new_cluster: *cluster_spec
@@ -71,137 +81,152 @@ resources:
           new_cluster: *cluster_spec
 
       tasks:
-        # --- CHC (UCSB): two chains -------------------------------------------
         - task_key: chirps_v2
           job_cluster_key: chc
+          timeout_seconds: 14400
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v2"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v2", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: chirp_v2
           depends_on: [{ task_key: chirps_v2 }]
           run_if: ALL_DONE
           job_cluster_key: chc
+          timeout_seconds: 14400
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v2"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v2", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: chirps_v3
           job_cluster_key: chc
+          timeout_seconds: 14400
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: chirp_v3
           depends_on: [{ task_key: chirps_v3 }]
           run_if: ALL_DONE
           job_cluster_key: chc
+          timeout_seconds: 14400
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v3"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirp_v3", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: chirps_v3_diag
           depends_on: [{ task_key: chirp_v3 }]
           run_if: ALL_DONE
           job_cluster_key: chc
+          timeout_seconds: 7200
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3_diag"]
-
-        # --- NASA GES DISC + team IMERG archive --------------------------------
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "chirps_v3_diag", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: imerg_final
           job_cluster_key: nasa
+          timeout_seconds: 10800
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_final"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_final", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: imerg_late
           job_cluster_key: nasa
+          timeout_seconds: 21600
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_late", "--workers", "12"]
-
-        # --- gauges, ERA5, static aux -----------------------------------------
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "imerg_late", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}", "--workers", "12"]
         - task_key: static
           job_cluster_key: gauges
+          timeout_seconds: 3600
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "static"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "static", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: era5
-          job_cluster_key: gauges
-          libraries: *libs
-          spark_python_task:
-            python_file: databricks/run_task.py
-            source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "era5"]
-        - task_key: gpcc_full
-          job_cluster_key: gauges
-          libraries: *libs
-          spark_python_task:
-            python_file: databricks/run_task.py
-            source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_full"]
-        - task_key: gpcc_monitoring
-          depends_on: [{ task_key: gpcc_full }]
+          depends_on: [{ task_key: static }]
           run_if: ALL_DONE
           job_cluster_key: gauges
+          timeout_seconds: 7200
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_monitoring"]
-        - task_key: cru
-          job_cluster_key: gauges
-          libraries: *libs
-          spark_python_task:
-            python_file: databricks/run_task.py
-            source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru"]
-        - task_key: cru_tmp
-          depends_on: [{ task_key: cru }]
-          run_if: ALL_DONE
-          job_cluster_key: gauges
-          libraries: *libs
-          spark_python_task:
-            python_file: databricks/run_task.py
-            source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru_tmp"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "era5", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: cpc
+          depends_on: [{ task_key: era5 }]
+          run_if: ALL_DONE
           job_cluster_key: gauges
+          timeout_seconds: 10800
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cpc"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cpc", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: precl
           depends_on: [{ task_key: cpc }]
           run_if: ALL_DONE
           job_cluster_key: gauges
+          timeout_seconds: 3600
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "precl"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "precl", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
         - task_key: udel
           depends_on: [{ task_key: precl }]
           run_if: ALL_DONE
           job_cluster_key: gauges
+          timeout_seconds: 3600
           libraries: *libs
           spark_python_task:
             python_file: databricks/run_task.py
             source: GIT
-            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "udel"]
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "udel", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
+        - task_key: gpcc_full
+          job_cluster_key: gauges
+          timeout_seconds: 7200
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_full", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
+        - task_key: gpcc_monitoring
+          depends_on: [{ task_key: gpcc_full }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          timeout_seconds: 7200
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "gpcc_monitoring", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
+        - task_key: cru
+          job_cluster_key: gauges
+          timeout_seconds: 7200
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
+        - task_key: cru_tmp
+          depends_on: [{ task_key: cru }]
+          run_if: ALL_DONE
+          job_cluster_key: gauges
+          timeout_seconds: 7200
+          libraries: *libs
+          spark_python_task:
+            python_file: databricks/run_task.py
+            source: GIT
+            parameters: ["scripts/ingest.py", "--stage", "{{job.parameters.stage}}", "--", "cru_tmp", "--start", "{{job.parameters.start}}", "--end", "{{job.parameters.end}}", "--subdir", "{{job.parameters.subdir}}"]
 
 targets:
   dev:

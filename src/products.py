@@ -281,19 +281,22 @@ def _slice(ds: xr.Dataset, start: str, end: str) -> xr.Dataset:
 
 
 def build_gpcc_full(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
-    parts = []
+    # Per variable, float32 throughout: a to_array()/sortby() of the 4-decade
+    # concat would peak at ~5 GB on a shared 14 GB driver.
+    parts = {"precip": [], "numgauge": []}
     for d in range(1981, 2021, 10):
         url = f"{DWD}/full_data_monthly_v2022/05/full_data_monthly_v2022_{d}_{d + 9}_05.nc.gz"
         dest = download(url, workdir / f"gpcc_full_{d}.nc", gunzip=True)
-        ds = xr.open_dataset(dest)[["precip", "numgauge"]].load()
-        parts.append(ds)
-    ds = xr.concat(parts, "time")
-    ds = normalise(ds.to_array("v")).to_dataset("v")
+        with xr.open_dataset(dest) as src:
+            for v in parts:
+                parts[v].append(normalise(src[v].astype("float32").load()))
+        dest.unlink()
+    ds = xr.Dataset({v: xr.concat(parts[v], "time") for v in parts})
     assert_on_grid(ds, "gpcc_full")
     ds = _slice(ds, start, end)
     ds["precip"].attrs["units"] = "mm/month"
     ds.attrs["source"] = "DWD GPCC Full Data Monthly v2022 0.5 deg"
-    return ds.astype("float32")
+    return ds
 
 
 def build_gpcc_monitoring(start: str, end: str, workdir: Path, workers: int = 6) -> xr.Dataset:
@@ -342,25 +345,30 @@ def build_gpcc_monitoring(start: str, end: str, workdir: Path, workers: int = 6)
 def build_cru(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
     url = f"{CRU}/pre/cru_ts4.10.1901.2025.pre.dat.nc.gz"
     dest = download(url, workdir / "cru_pre.nc", gunzip=True)
-    ds = xr.open_dataset(dest)[["pre", "stn"]].sel(time=slice(start, end)).load()
-    ds = normalise(ds.to_array("v")).to_dataset("v").rename({"pre": "precip"})
+    with xr.open_dataset(dest) as src:
+        ds = xr.Dataset({
+            "precip": normalise(src["pre"].sel(time=slice(start, end)).astype("float32").load()),
+            "stn": normalise(src["stn"].sel(time=slice(start, end)).astype("float32").load()),
+        })
+    dest.unlink()
     assert_on_grid(ds, "cru")
     ds = _slice(ds, start, end)
     ds["precip"].attrs["units"] = "mm/month"
     ds["stn"].attrs["long_name"] = "stations within correlation-decay distance (CRU)"
     ds.attrs["source"] = "CRU TS 4.10 (UEA), ODbL - do not redistribute the gridded data"
-    return ds.astype("float32")
+    return ds
 
 
 def build_cru_tmp(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
     url = f"{CRU}/tmp/cru_ts4.10.1901.2025.tmp.dat.nc.gz"
     dest = download(url, workdir / "cru_tmp.nc", gunzip=True)
-    ds = xr.open_dataset(dest)[["tmp"]].sel(time=slice(start, end)).load()
-    ds = normalise(ds.to_array("v")).to_dataset("v")
+    with xr.open_dataset(dest) as src:
+        ds = xr.Dataset({"tmp": normalise(src["tmp"].sel(time=slice(start, end)).astype("float32").load())})
+    dest.unlink()
     assert_on_grid(ds, "cru_tmp")
     ds = _slice(ds, start, end)
     ds.attrs["source"] = "CRU TS 4.10 tmp (UEA), ODbL"
-    return ds.astype("float32")
+    return ds
 
 
 def build_cpc(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
@@ -373,9 +381,10 @@ def build_cpc(start: str, end: str, workdir: Path, **_) -> xr.Dataset:
             if exc.response is not None and exc.response.status_code == 404:
                 break
             raise
-        da = xr.open_dataset(dest)["precip"].load()
+        da = xr.open_dataset(dest)["precip"].astype("float32").load()
         # monthly sum only where every day of the month is present
         cnt = da.notnull().resample(time="MS").sum()
+        print(f"[cpc] {y}: max valid days per month {cnt.max(('lat', 'lon')).values.tolist()}", flush=True)
         tot = da.resample(time="MS").sum(min_count=1)
         dim = xr.DataArray([ndays(pd.Timestamp(t)) for t in tot.time.values], coords={"time": tot.time})
         parts.append(tot.where(cnt == dim))

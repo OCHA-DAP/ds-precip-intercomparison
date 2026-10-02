@@ -98,6 +98,8 @@ def download(
             if code in (401, 403, 404):
                 raw.unlink(missing_ok=True)
                 raise
+            if code == 416 or isinstance(exc, EOFError):
+                raw.unlink(missing_ok=True)  # bad range / truncated archive: start over
             if isinstance(exc, (OSError, gzip.BadGzipFile)) and gunzip and not isinstance(exc, requests.RequestException):
                 raw.unlink(missing_ok=True)  # corrupt archive: restart from scratch
             time.sleep(min(60, 5 * 2**attempt))
