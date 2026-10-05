@@ -9,7 +9,7 @@ const fmt = (v, d = 2) => (v == null || !isFinite(v) ? "–" : (+v).toFixed(d));
 
 let META, CELLS, GRID, UNITS = { country: new Map(), admin1: new Map() };
 const cache = new Map();
-const state = { a: "chirps_v2", b: "era5", agg: "annual", stat: "pearson", unit: "pixel", cell: null, country: null, admin1: null };
+const state = { a: "chirps_v3", b: "era5", agg: "rainy", stat: "pearson", unit: "pixel", cell: null, country: null, admin1: null };
 let map, overlay, corrField = null, nField = null, sel = { A: null, B: null, years: [] };
 
 // ------------------------------------------------------------------ data
