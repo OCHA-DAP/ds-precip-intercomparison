@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rainfall Product Correlation Explorer</title>
+<meta name="description" content="Pick two rainfall products and a period: map of their year-to-year correlation at every 0.5° pixel, and a year-by-year scatter for any pixel, admin-1 unit or country.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="../report/report.css">
+<link rel="stylesheet" href="explorer.css">
+</head>
+<body>
+<a class="home-link" href="../">← Precipitation intercomparison</a>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">OCHA Centre for Humanitarian Data · explorer</p>
+  <h1>Do two rainfall products agree, year to year?</h1>
+  <p>Pick two products and a period. The map shows, at every 0.5° land pixel, how well the two products'
+     totals for that period correlate across years. Click a pixel — or pick an admin-1 unit or a country — to
+     see the two products plotted against each other, one label per year.</p>
+</header>
+<main>
+  <p id="fatal" class="callout" hidden></p>
+  <div class="controls ex-controls">
+    <label>Product A <select id="sel-a"></select></label>
+    <label>Product B <select id="sel-b"></select></label>
+    <label>Period <select id="sel-agg"></select></label>
+    <label>Statistic <select id="sel-stat">
+      <option value="pearson">Pearson r</option>
+      <option value="spearman">Spearman ρ</option>
+      <option value="detrended">Pearson r, detrended</option>
+    </select></label>
+    <span id="status" class="muted"></span>
+  </div>
+  <div class="ex-grid">
+    <div>
+      <div id="map" role="application" aria-label="Map of the correlation between the two products"></div>
+      <div class="ex-legend">
+        <span>Correlation across years:</span>
+        <span class="lg"><span class="bar" id="legend-bar"></span>
+          <span class="ticks"><i style="left:14.3%">−0.5</i><i style="left:28.6%">0</i><i style="left:42.9%">0.2</i><i style="left:57.1%">0.4</i><i style="left:71.4%">0.6</i><i style="left:85.7%">0.8</i></span></span>
+        <span class="muted" id="map-summary"></span>
+      </div>
+      <p class="muted">Grey = no value: fewer than 10 overlapping years, or no year-to-year variation (a
+         season that is always dry). Zoom and pan freely; hover for the value, click to plot that pixel.</p>
+    </div>
+    <div class="ex-side">
+      <div class="controls">
+        <label>Plot <span class="seg" id="seg-unit"></span></label>
+      </div>
+      <div class="controls">
+        <select id="sel-country" aria-label="Country"></select>
+        <select id="sel-admin1" aria-label="Admin-1 unit"></select>
+      </div>
+      <h3 id="scatter-title">Click the map</h3>
+      <div id="scatter"></div>
+      <div id="scatter-stats" class="muted"></div>
+    </div>
+  </div>
+  <section>
+    <h2>Notes</h2>
+    <ul>
+      <li>Totals are computed from monthly data on the 0.5° grid of the
+          <a href="../report/">main analysis</a>; a year counts only if every month of the period is present.
+          3-month periods crossing the year end (NDJ, DJF) are labelled by the year they end in.</li>
+      <li><b>Rainy season</b>: the calendar months whose GPCC 2001–2020 climatology is at least the monthly
+          mean, summed within a hydrological year that starts the month after the driest month (so a
+          November–March season counts as one season), and labelled by the calendar year of its last rainy
+          month. The months used for the selected pixel are shown under the scatter.</li>
+      <li>Admin-1 (Natural Earth, not COD boundaries) and country values are area-weighted means of the 0.5°
+          cells assigned to the unit by majority, using only cells where both products have data that year.
+          Small units may have one or no cell.</li>
+      <li>Values are stored at 8-bit precision per pixel: typically 1–2 mm on annual totals, up to ~50 mm
+          in the wettest pixels — negligible for correlation, visible only in the last digits of the scatter
+          values.</li>
+      <li>Physically implausible months are masked in every product: above both 1,500 mm and 15× the
+          cross-product climatology for that pixel and month, <i>and</i> more than 5× the median of all other
+          products (379 pixel-months in all — source errors such as CPC's 21,000 mm over Italy in February
+          2026 or IMERG Late's 10,000 mm over Siberia in January).</li>
+      <li>IMERG Late October–November 2024 is excluded (NASA calibration incident). CHIRPS/CHIRP v2 cover
+          50°S–50°N, v3 60°S–60°N. The JRC ASAP blend is CHIRPS v2 within ±50° and ERA5 beyond, so it is
+          not listed separately.</li>
+      <li>"Detrended" removes each product's own linear trend before correlating, so shared trends (or
+          opposite drifts) do not inflate or deflate the agreement on year-to-year variability.</li>
+    </ul>
+  </section>
+</main>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="explorer.js"></script>
+</body>
+</html>

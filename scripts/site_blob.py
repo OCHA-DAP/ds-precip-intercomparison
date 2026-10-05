@@ -1,4 +1,4 @@
-"""Move the generated report outputs (site/report/{data,fig}/**) to and from blob.
+"""Move the generated site outputs (report data/figures, explorer data) to and from blob.
 
 Generated JSON/PNGs never enter git: the analysis runs locally (or on
 Databricks), `upload` parks them on the dev blob with a sha256 manifest, and the
@@ -25,8 +25,8 @@ from azure.storage.blob import ContentSettings  # noqa: E402
 
 from src.constants import PROJECT_PREFIX  # noqa: E402
 
-ROOT = Path(__file__).resolve().parents[1] / "site" / "report"
-SUBDIRS = ("data", "fig")
+ROOT = Path(__file__).resolve().parents[1] / "site"
+SUBDIRS = ("report/data", "report/fig", "explorer/data")
 PREFIX = f"{PROJECT_PREFIX}/site"
 MANIFEST = "manifest.json"
 
@@ -41,17 +41,28 @@ def upload() -> None:
         raise SystemExit("nothing to upload (run analyze.py and figures.py first)")
     cc = stratus.get_container_client("projects", stage="dev", write=True)
     manifest = {"created": datetime.now(timezone.utc).isoformat(timespec="seconds"), "files": {}}
+    # unchanged files (same sha256 as the current manifest) are not re-uploaded
+    try:
+        old = json.loads(cc.download_blob(f"{PREFIX}/{MANIFEST}").readall())["files"]
+    except Exception:  # noqa: BLE001 - first upload
+        old = {}
+    sent = 0
     for p in files:
         rel = p.relative_to(ROOT).as_posix()
         b = p.read_bytes()
+        sha = _sha(b)
+        manifest["files"][rel] = sha
+        if old.get(rel) == sha:
+            continue
         ctype = mimetypes.guess_type(p.name)[0] or "application/octet-stream"
-        cc.upload_blob(f"{PREFIX}/{rel}", b, overwrite=True, content_settings=ContentSettings(content_type=ctype))
-        manifest["files"][rel] = _sha(b)
+        cc.upload_blob(f"{PREFIX}/{rel}", b, overwrite=True, content_settings=ContentSettings(content_type=ctype),
+                       max_concurrency=4)
+        sent += 1
     # manifest last: a partial upload leaves the previous manifest, which then
     # fails verification on download instead of serving a mixed set
     cc.upload_blob(f"{PREFIX}/{MANIFEST}", json.dumps(manifest, indent=1).encode(), overwrite=True,
                    content_settings=ContentSettings(content_type="application/json"))
-    print(f"uploaded {len(files)} files + manifest to projects/{PREFIX}")
+    print(f"uploaded {sent} changed of {len(files)} files + manifest to projects/{PREFIX}")
 
 
 def download() -> None:

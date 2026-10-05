@@ -1,0 +1,18 @@
+.ex-controls label, .ex-side label { display:flex; align-items:center; gap:6px; }
+.ex-grid { display:grid; grid-template-columns:minmax(0, 1.55fr) minmax(0, 1fr); gap:22px; margin-top:8px; }
+#map { height:520px; border:1px solid var(--n2); border-radius:4px; background:#e8ebeb; }
+#map .leaflet-image-layer { image-rendering:pixelated; image-rendering:crisp-edges; }
+.ex-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px; font-size:12px; color:var(--n8); margin:8px 0 2px; }
+.ex-legend .lg { display:inline-flex; flex-direction:column; width:240px; }
+.ex-legend .bar { display:block; width:240px; height:10px; border-radius:2px; }
+.ex-legend .ticks { position:relative; display:block; height:14px; font-size:11px; color:var(--n7); }
+.ex-legend .ticks i { position:absolute; transform:translateX(-50%); font-style:normal; top:1px; }
+.ex-side select { max-width:100%; }
+#scatter svg { display:block; width:100%; height:auto; }
+#scatter .yr { font:500 10.5px 'Roboto', system-ui, sans-serif; }
+#scatter .axis text { fill:var(--n7); font-size:11px; }
+#scatter .axis line, #scatter .axis path { stroke:var(--n3); }
+#scatter .grid line { stroke:var(--n2); }
+#scatter-stats { margin-top:6px; line-height:1.6; }
+.leaflet-tooltip.ex-tip { font:12px 'Roboto', system-ui, sans-serif; }
+@media (max-width: 900px) { .ex-grid { grid-template-columns:1fr; } #map { height:420px; } }

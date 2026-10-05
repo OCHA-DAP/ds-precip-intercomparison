@@ -40,8 +40,15 @@ temperature (snow masking), CHIRPS v3 ERA5-fill fraction and station density.
    the task on a units, orientation or time-offset error. Output: one NetCDF per
    product on the dev blob, `projects/ds-precip-intercomparison/processed/grid05/`.
    Job: `databricks.yml` → `precip_ingest` (unscheduled).
-2. **Analysis (local)** — reads the 0.5° cubes and writes summary tables and figures
-   for the site.
+2. **Analysis (local)** — `scripts/pack.py` pulls the cubes into `cache/packed/` (land cells
+   only); `scripts/analyze.py` + `scripts/figures.py` write the report data and maps;
+   `scripts/explorer_data.py` writes per-pixel yearly totals (calendar year, rainy season, twelve
+   3-month windows; 8-bit per pixel, ~500 MB) for the correlation explorer.
+3. **Site** — `scripts/site_blob.py upload` parks every generated file on the dev blob with a
+   sha256 manifest; `.github/workflows/deploy-pages.yml` downloads, verifies and publishes:
+   `/report/` (findings, maps, tables, country explorer) and `/explorer/` (pick two products and a
+   period → per-pixel correlation map + year-labelled scatter for a pixel, admin-1 unit or country,
+   all computed in the browser).
 
 ```bash
 uv sync

@@ -114,6 +114,7 @@ def load(end: str | None = None) -> Data:
                 i = time.get_indexer([pd.Timestamp(ym + "-01")])[0]
                 if i >= 0:
                     d.precip[prod][i] = np.nan
+    mask_outliers(d)
     # CHIRPS cells with < half their 0.05 deg pixels valid (coasts) are dropped.
     for p in ("chirps_v2", "chirp_v2", "chirps_v3", "chirp_v3"):
         vf = d.extra.get(f"{p}_valid_frac")
@@ -124,6 +125,43 @@ def load(end: str | None = None) -> Data:
         inside = np.abs(cells["lat"]) < 50
         d.precip["asap"] = np.where(inside[None, :], d.precip["chirps_v2"], d.precip["era5"])
     return d
+
+
+def mask_outliers(d: Data, floor: float = 1500.0, clim_factor: float = 15.0, peer_factor: float = 5.0) -> None:
+    """Mask physically implausible monthly values in place.
+
+    A month is masked when it exceeds BOTH max(`floor` mm, `clim_factor` x the
+    cross-product median 2001-2020 climatology of that cell and calendar month)
+    AND `peer_factor` x the median of every other product for the same cell and
+    month. Catches source errors (CPC 21,226 mm over Italy in Feb 2026, IMERG
+    Late >10,000 mm over Siberia in January, PREC/L 8,168 mm in Nigeria) while
+    keeping real extremes that the other products also see (e.g. ERA5 over coastal
+    Ecuador in most 1982-83 / 1997-98 El Nino months). Counts go to d.extra.
+    """
+    from src.metrics import monthly_clim
+
+    P = [p for p in d.precip if p != "asap"]
+    tb = d.window(2001, 2020)
+    mo = d.months
+    clim = np.stack([monthly_clim(d.precip[p][tb], mo[tb]) for p in P])
+    with np.errstate(all="ignore"):
+        ref = np.nanmedian(clim, 0)  # (12, N)
+    ceiling = np.maximum(floor, clim_factor * np.nan_to_num(ref))
+    counts = {}
+    for p in P:
+        x = d.precip[p]
+        cand = np.isfinite(x) & (x > ceiling[mo - 1])
+        if not cand.any():
+            continue
+        it, ic = np.nonzero(cand)
+        others = np.stack([d.precip[q][it, ic] for q in P if q != p])
+        with np.errstate(all="ignore"):
+            peer = np.nanmedian(others, 0)
+        bad = x[it, ic] > peer_factor * np.maximum(np.nan_to_num(peer, nan=0.0), 1.0)
+        x[it[bad], ic[bad]] = np.nan
+        counts[p] = int(bad.sum())
+    d.extra["outliers_masked"] = counts
+    print(f"[adata] implausible months masked: {counts}")
 
 
 def products_present(d: Data) -> list[str]:

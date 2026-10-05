@@ -13,8 +13,13 @@ README has the product table and pipeline; this file is the non-obvious stuff.
   (`databricks.yml`, job `precip_ingest`, unscheduled, prod target + dev data plane).
 - `scripts/pack.py` → `cache/packed/*.npz` (land cells only; the laptop is disk-constrained).
 - `scripts/analyze.py` → `site/report/data/*.json` + `cache/fields.npz`;
-  `scripts/figures.py` → `site/report/fig/*.png`. Generated site output is NOT committed:
-  `scripts/site_blob.py upload` parks it on dev blob, the Pages workflow downloads it.
+  `scripts/figures.py` → `site/report/fig/*.png`; `scripts/explorer_data.py` →
+  `site/explorer/data/*.bin` (+ `meta.json`, `cells.bin`; layout in the script docstring).
+  Generated site output is NOT committed: `scripts/site_blob.py upload` parks it on dev blob
+  (skips unchanged files by sha256), the Pages workflow downloads and verifies it.
+- The explorer computes everything client-side (correlation map, unit aggregation) from the
+  two loaded product files; adding a statistic is a JS change, adding an aggregation is an
+  `explorer_data.py` change + re-upload (~500 MB; Pages limit is 1 GB).
 
 ## Gotchas
 - **Earthdata lockout**: repeated failed logins lock the NASA account for 10 min. The
