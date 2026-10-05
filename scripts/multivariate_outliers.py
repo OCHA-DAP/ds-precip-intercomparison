@@ -3,6 +3,11 @@ disagreement over time.
 
     python scripts/multivariate_outliers.py   # -> site/multivariate/data/outliers.json
 
+1b. The same PCA on deviations from the consensus: each product's anomaly minus the
+   mean of all twelve in that cell-month (the analogue of a centred log-ratio for
+   closed data). Removing the shared rain signal leaves only how products differ.
+   Deviations sum to zero across products, so one eigenvalue is zero and loadings
+   read as contrasts between products.
 1. PCA of the product correlation matrix per region (pooled over every cell-month
    of standardised, rain-relevant anomalies). Loadings on PC1-3 place each product
    in a common space; products that move together sit together. This is the
@@ -34,6 +39,13 @@ def pooled_corr(z: np.ndarray, sel: np.ndarray) -> np.ndarray:
     X = z[:, sel].reshape(-1, K)
     X = X[np.isfinite(X).all(1)].astype(np.float64)
     return np.corrcoef(X, rowvar=False)
+
+
+def pooled_dev_cov(z: np.ndarray, sel: np.ndarray) -> np.ndarray:
+    X = z[:, sel].reshape(-1, K)
+    X = X[np.isfinite(X).all(1)].astype(np.float64)
+    X = X - X.mean(1, keepdims=True)  # remove the cross-product consensus
+    return np.cov(X, rowvar=False)
 
 
 def pca(R: np.ndarray) -> dict:
@@ -68,6 +80,18 @@ def main() -> None:
 
     # 1. PCA per region
     pcs = {reg: pca(pooled_corr(z, sel)) | {"cells": int(sel.sum())} for reg, sel in regions.items()}
+    pcs_dev = {}
+    for reg, sel in regions.items():
+        Cd = pooled_dev_cov(z, sel)
+        w, V = np.linalg.eigh(Cd)
+        o = np.argsort(w)[::-1]
+        w, V = np.clip(w[o], 0, None), V[:, o]
+        L = V[:, :3] * np.sqrt(w[:3])
+        for j in range(3):  # orientation: GPCC Full positive
+            if L[P.index("gpcc_full"), j] < 0:
+                L[:, j] *= -1
+        pcs_dev[reg] = {"loadings": {p: L[i].tolist() for i, p in enumerate(P)}, "var_frac": (w / w.sum())[:6].tolist(),
+                        "cells": int(sel.sum()), "smallest_eig_frac": float(w[-1] / w.sum())}
     print("[outliers] PCA done")
 
     # 2. per-cell distance of each product from the mean of the others
@@ -109,7 +133,7 @@ def main() -> None:
         return np.where(np.isfinite(x), q, 255).astype(np.uint8).tolist()
 
     mv.dump("outliers", {
-        "products": P, "pca": pcs, "share_farthest": share, "median_distance": med_dist,
+        "products": P, "pca": pcs, "pca_dev": pcs_dev, "share_farthest": share, "median_distance": med_dist,
         "spread_ts": {"times": times, "series": ts},
         "cell": {"farthest": far[idx].astype(int).tolist(), "gap": u8(gap[idx], 0.5),
                  "far_dist": u8(np.nanmax(dist, 1)[idx], 1.0), "disagree": u8(disagree_map[idx], 1.0)},
