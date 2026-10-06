@@ -73,9 +73,12 @@ def load_stations() -> pd.DataFrame:
     """Daily series of every station in the daily datasets: columns = station key."""
     recs, series = [], {}
     for code in DAILY:
-        zf = next(GAUGE_DIR.glob(f"AMMA-CATCH_{code}_*.zip"), None)
-        if zf is None:
-            raise FileNotFoundError(f"{code}: zip not found in {GAUGE_DIR}")
+        # exact name: a glob "AMMA-CATCH_CE.Rain_Nc_*" would also match the CE.Rain_Nc_9004 zip
+        pat = re.compile(rf"AMMA-CATCH_{re.escape(code)}_(daily|Precipitation_[A-Za-z_]+)\.zip")
+        hits = [p for p in GAUGE_DIR.iterdir() if pat.fullmatch(p.name)]
+        if len(hits) != 1:
+            raise FileNotFoundError(f"{code}: expected one zip in {GAUGE_DIR}, found {[h.name for h in hits]}")
+        zf = hits[0]
         with zipfile.ZipFile(zf) as z:
             for name in z.namelist():
                 if not name.endswith(".csv"):
