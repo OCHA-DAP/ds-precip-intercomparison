@@ -101,14 +101,14 @@ def monthly(daily: pd.DataFrame) -> pd.DataFrame:
     return tot.where(n.eq(days, axis=0))
 
 
-def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
     """Same station in several datasets (within 500 m), e.g. a series split between
     CE.Rain_Nc_9004 and CE.Rain_Nc at 2004: keep the record with the most complete
     months and fill its missing months from the others. Where both have a month they
     should agree; the kept record's value is used and disagreements over 1 mm are printed."""
     st = st.assign(nmon=mon.notna().sum().reindex(st.index).values).sort_values("nmon", ascending=False)
     mon = mon.copy()
-    keep, filled = [], 0
+    keep, filled, merged = [], 0, {}
     for k, r in st.iterrows():
         near = [j for j in keep
                 if np.hypot((r.lat - st.at[j, "lat"]) * 111, (r.lon - st.at[j, "lon"]) * 111 * np.cos(np.radians(r.lat))) <= 0.5]
@@ -116,6 +116,7 @@ def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
             keep.append(k)
             continue
         j = near[0]
+        merged[k] = j
         both = mon[j].notna() & mon[k].notna()
         bad = both & ((mon[j] - mon[k]).abs() > 1.0)
         if bad.any():
@@ -124,7 +125,7 @@ def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFr
         mon.loc[gap, j] = mon.loc[gap, k]
         filled += int(gap.loc["2001-01":"2020-12"].sum())
     print(f"[gauges] duplicates merged: {len(st) - len(keep)} records; {filled} station-months (2001-2020) filled from them")
-    return st.loc[keep], mon[keep]
+    return st.loc[keep], mon[keep], merged
 
 
 def chirps_matches(st: pd.DataFrame) -> pd.Series:
@@ -167,6 +168,75 @@ def overlap_table(st, mon, d) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("stations", ascending=False)
 
 
+def viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d) -> None:
+    """Everything the explainer section draws, straight from this run -> gauge_viz.json."""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    used_cells = {(s_["iy"], s_["ix"]) for s_ in series}
+    used_st = {k for s_ in series for k in s_["stations"]}
+    per = mon.loc["2001-01":"2020-12"]
+    complete = per.notna().sum()
+    stations = []
+    for k, r in st_all.iterrows():
+        iy, ix = cell_of(r.lat, r.lon)
+        if k in merged:
+            fate, why = "merged", f"duplicate of {st_all.at[merged[k], 'name']} ({merged[k].split('|')[0]}), merged into it"
+        elif bool(st.at[k, "in_chirps"]):
+            fate, why = "chirps", f"used by CHIRPS v3 (station {st.at[k, 'chirps_km']:.1f} km away) - removed"
+        elif complete.get(k, 0) == 0:
+            fate, why = "nodata", "no complete month in 2001-2020"
+        elif k in used_st:
+            fate, why = "used", "used"
+        else:
+            fate, why = "fewcells", "its 0.5° cell never has 3 complete stations in enough months"
+        stations.append({"key": k, "name": r["name"], "dataset": r["dataset"], "lat": round(float(r.lat), 4), "lon": round(float(r.lon), 4),
+                         "fate": fate, "why": why, "complete_months": int(complete.get(k, 0)) if k in complete.index else 0,
+                         "cell": [int(iy), int(ix)]})
+    n_any = int(sum(1 for x in stations if x["fate"] in ("used", "fewcells")))
+    funnel = [
+        {"step": "Gauge records in the 10 daily datasets", "n": len(st_all), "unit": "records"},
+        {"step": "After merging duplicates (same spot, within 500 m)", "n": len(st), "unit": "stations"},
+        {"step": "After removing gauges CHIRPS v3 uses", "n": int((~st.in_chirps).sum()), "unit": "stations"},
+        {"step": "With at least one complete month in 2001-2020", "n": n_any, "unit": "stations"},
+        {"step": "...and in a 0.5° cell that reaches 3 complete stations: used", "n": int(sum(1 for x in stations if x["fate"] == "used")), "unit": "stations"},
+        {"step": "Cell-months with 3 or more complete stations", "n": n_cm_ge3, "unit": "cell-months"},
+        {"step": "...that are rain-season months with every product present", "n": int(len(X)), "unit": "cell-months"},
+    ]
+    # availability: complete (non-CHIRPS) station-months per scored cell per year, 1990-2025
+    years = list(range(1990, 2026))
+    avail = []
+    for s_ in series:
+        sub = mon[[k for k in s_["stations"]]]
+        cnt = sub.notna().sum(1)
+        avail.append([int(cnt[cnt.index.year == y].sum()) for y in years])
+    # basemap: country outlines in the gauge region
+    bbox = (-6.5, 4.0, 10.5, 18.5)
+    zp = mv.CACHE / "ne_10m_admin_0_countries.zip"
+    if not zp.exists():
+        raise FileNotFoundError(f"{zp} missing — run analyze.py once (src.adata.countries downloads it)")
+    gdf = gpd.read_file(zp)[["NAME", "geometry"]]
+    gdf = gdf[gdf.intersects(box(*bbox))].copy()
+    gdf["geometry"] = gdf.geometry.intersection(box(*bbox)).simplify(0.02)
+    rings = []
+    for name, geom in zip(gdf.NAME, gdf.geometry):
+        polys = [geom] if geom.geom_type == "Polygon" else list(getattr(geom, "geoms", []))
+        for pg in polys:
+            if pg.geom_type == "Polygon":
+                rings.append({"name": name, "xy": np.round(np.asarray(pg.exterior.coords), 3).tolist()})
+    labels = {n: [round(c.x, 2), round(c.y, 2)] for n, c in zip(gdf.NAME, gdf.geometry.representative_point())}
+    mv.dump("gauge_viz", {
+        "stations": stations, "funnel": funnel, "bbox": bbox, "countries": rings, "country_labels": labels,
+        "cells": [{**r, "iy": s_["iy"], "ix": s_["ix"]} for r, s_ in zip(rows, series)],
+        "availability": {"years": years, "counts": avail},
+        "times": [f"{t:%Y-%m}" for t in times],
+        "series": [{k_: v for k_, v in s_.items() if k_ != "stations"} for s_ in series],
+        "pooled": {"z": np.round(X, 2).tolist(), "cell": CELLS.astype(int).tolist(), "month": MO.astype(int).tolist(),
+                   "year": Y.astype(int).tolist(), "dry": dry.astype(int).tolist(), "valid": valid.astype(int).tolist()},
+        "products": mv.P, "match_km": MATCH_KM, "min_stations": MIN_STATIONS,
+    })
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--overlap", action="store_true", help="only print the step-0 overlap table")
@@ -174,7 +244,8 @@ def main() -> None:
     st, daily = load_stations()
     mon = monthly(daily)
     print(f"[gauges] {len(st)} station records, {daily.shape[0]} days, {daily.index.min():%Y}-{daily.index.max():%Y}")
-    st, mon = dedupe(st, mon)
+    st_all = st.copy()
+    st, mon, merged = dedupe(st, mon)
     print(f"[gauges] {len(st)} stations after removing duplicates across datasets")
     st["chirps_km"] = chirps_matches(st)
     st["in_chirps"] = st.chirps_km <= MATCH_KM
@@ -186,7 +257,7 @@ def main() -> None:
         print(tab.to_string(index=False))
     if a.overlap:
         return
-    score(st, mon, d, tab)
+    score(st, mon, d, tab, st_all, merged)
 
 
 # Core-product pairs that are independent under BOTH shared-error explanations
@@ -228,7 +299,7 @@ def evaluate(C: np.ndarray) -> dict:
             "gauge_based": gauge_based, "model": model}
 
 
-def score(st, mon, d, tab) -> None:
+def score(st, mon, d, tab, st_all, merged) -> None:
     tb = d.window(*mv.WINDOW)
     times = d.time[tb]
     mo, yr = d.months[tb], d.years[tb]
@@ -237,6 +308,7 @@ def score(st, mon, d, tab) -> None:
     free["iy"], free["ix"] = cell_of(free.lat, free.lon)
     per = mon.reindex(pd.PeriodIndex(times, freq="M"))
     rows, X, Y, CELLS, MO = [], [], [], [], []
+    series, n_cm_ge3 = [], 0
     for (iy, ix), grp in free.groupby(["iy", "ix"]):
         c = key.get((iy, ix))
         if c is None:
@@ -246,11 +318,17 @@ def score(st, mon, d, tab) -> None:
         gauge = np.where(n >= MIN_STATIONS, g.mean(1).to_numpy(), np.nan)
         if np.isfinite(gauge).sum() < 30:
             continue
+        n_ge3 = int(np.isfinite(gauge).sum())
         prods = np.stack([d.precip[p][tb][:, c] for p in mv.P], 1)
         clim = M.monthly_clim(d.precip[mv.REF_CLIM][tb][:, [c]], mo)[:, 0]
         ok = np.isfinite(gauge) & np.isfinite(prods).all(1) & (clim[mo - 1] >= mv.RAIN_RELEVANT)
         if ok.sum() < 30:
             continue
+        n_cm_ge3 += n_ge3
+        series.append({"gauge": np.round(np.where(np.isfinite(gauge), gauge, -1), 1).tolist(), "n": n.astype(int).tolist(),
+                       "ok": ok.astype(int).tolist(), "relevant": (clim[mo - 1] >= mv.RAIN_RELEVANT).astype(int).tolist(),
+                       "products": {p: np.round(np.nan_to_num(prods[:, i], nan=-1), 1).tolist() for i, p in enumerate(mv.P)},
+                       "stations": grp.index.tolist(), "iy": int(iy), "ix": int(ix)})
         raw = np.column_stack([gauge, prods]).astype(np.float64)
         raw[~ok] = np.nan
         z = np.column_stack([M.std_anom(raw[:, [j]], mo)[:, 0] for j in range(raw.shape[1])])
@@ -376,6 +454,7 @@ def score(st, mon, d, tab) -> None:
         e = evaluate(np.cov(X[sel], rowvar=False))
         per_cell.append({"cell": r["cell"], "gauge_based": e["gauge_based"], "rho2_gauge": e["rho2_gauge"]})
     out["per_cell"] = per_cell
+    viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d)
     out["overlap"] = tab.to_dict(orient="records")
     out["stations_in_chirps"] = st[st.in_chirps].name.tolist()
     mv.dump("gauges", out)
