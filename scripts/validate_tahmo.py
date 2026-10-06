@@ -220,7 +220,8 @@ def main() -> None:
     out = {"window": WINDOW, "products": PRODS, "n_stations_african": int(len(st)), "n_in_chirps": int(st.in_chirps.sum()),
            "in_chirps_by_country": st.groupby("country_code").in_chirps.agg(["sum", "count"]).astype(int).to_dict(orient="index"),
            "cells_by_region_tier": ci.groupby(["region", "tier"]).size().rename("cells").reset_index().to_dict(orient="records"),
-           "gpccmon_in_cells": {"median_of_medians": float(ci.gpccmon_median.median()), "share_cells_median_gt0": float((ci.gpccmon_median > 0).mean())},
+           "gpccmon_in_cells": {"median_of_medians": float(ci.gpccmon_median.median()), "share_cells_median_gt0": float((ci.gpccmon_median > 0).mean()),
+                                "by_tier": ci.groupby("tier").gpccmon_median.agg(["median", "mean"]).to_dict(orient="index")},
            "groups": res, "amma_calibration": cal}
     out["months_dropped_no_variation"] = DROPPED_NO_VARIATION[0]
     print(f"[tahmo] months dropped because a source had no year-to-year variation that calendar month: {DROPPED_NO_VARIATION[0]}")
