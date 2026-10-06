@@ -40,6 +40,10 @@ CHIRPS_LIST = "https://data.chc.ucsb.edu/products/CHIRPS/v3.0/diagnostics/list_o
 # the secondary flux/met stations (AE.*, AL.*, PA.*) are left out
 DAILY = ["CL.Rain_O", "CL.Rain_Od", "CL.Rain_Cotonou", "CL.Rain_G", "CL.Rain_GT", "CL.RainD_Gh",
          "CL.Rain_N", "CE.Rain_Nc", "CE.Rain_Nc_9004", "CL.Rain_Nig"]
+SITE_OF = {"CL.Rain_O": "Benin, upper Ouémé", "CL.Rain_Od": "Benin, Donga (in the Ouémé)", "CL.Rain_Cotonou": "Benin, Cotonou",
+           "CL.Rain_G": "Mali, Gourma (Hombori)", "CL.Rain_GT": "Mali, Gourma transect", "CL.RainD_Gh": "Mali, Gourma (Hombori, reading gauges)",
+           "CL.Rain_N": "Niger, Niamey (long-term)", "CE.Rain_Nc": "Niger, Niamey (2004 on)", "CE.Rain_Nc_9004": "Niger, Niamey (1990-2004)",
+           "CL.Rain_Nig": "Niger, other towns"}
 MATCH_KM = 2.0
 MIN_STATIONS = 3
 KNOWN_FLAGS = {"checked data", "missing value", "Cumulative rainfall estimated from control bucket"}
@@ -168,7 +172,7 @@ def overlap_table(st, mon, d) -> pd.DataFrame:
     return pd.DataFrame(rows).sort_values("stations", ascending=False)
 
 
-def viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d) -> None:
+def viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d, mon_all) -> None:
     """Everything the explainer section draws, straight from this run -> gauge_viz.json."""
     import geopandas as gpd
     from shapely.geometry import box
@@ -210,6 +214,19 @@ def viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO,
         sub = mon[[k for k in s_["stations"]]]
         cnt = sub.notna().sum(1)
         avail.append([int(cnt[cnt.index.year == y].sum()) for y in years])
+    # coverage: complete station-months per gauge dataset and year (before any selection),
+    # and each product's span, for the timeline
+    yrs_all = list(range(1989, 2026))
+    datasets = []
+    for code in DAILY:
+        cols = [k for k in st_all.index if st_all.at[k, "dataset"] == code]
+        sub = mon_all[cols]
+        per_year = [int(sub[sub.index.year == y].notna().sum().sum()) for y in yrs_all]
+        have = [y for y, v in zip(yrs_all, per_year) if v]
+        n_used = sum(1 for x in stations if x["dataset"] == code and x["fate"] == "used")
+        datasets.append({"code": code, "site": SITE_OF[code], "stations": len(cols), "used": n_used,
+                         "first": have[0] if have else None, "last": have[-1] if have else None, "per_year": per_year})
+    prod_span = {p: list(d.span(p)) for p in mv.P}
     # basemap: country outlines in the gauge region
     bbox = (-6.5, 4.0, 10.5, 18.5)
     zp = mv.CACHE / "ne_10m_admin_0_countries.zip"
@@ -226,7 +243,8 @@ def viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO,
                 rings.append({"name": name, "xy": np.round(np.asarray(pg.exterior.coords), 3).tolist()})
     labels = {n: [round(c.x, 2), round(c.y, 2)] for n, c in zip(gdf.NAME, gdf.geometry.representative_point())}
     mv.dump("gauge_viz", {
-        "stations": stations, "funnel": funnel, "bbox": bbox, "countries": rings, "country_labels": labels,
+        "stations": stations, "funnel": funnel, "coverage": {"years": yrs_all, "datasets": datasets, "products": prod_span,
+                                                          "window": list(mv.WINDOW)}, "bbox": bbox, "countries": rings, "country_labels": labels,
         "cells": [{**r, "iy": s_["iy"], "ix": s_["ix"]} for r, s_ in zip(rows, series)],
         "availability": {"years": years, "counts": avail},
         "times": [f"{t:%Y-%m}" for t in times],
@@ -244,7 +262,7 @@ def main() -> None:
     st, daily = load_stations()
     mon = monthly(daily)
     print(f"[gauges] {len(st)} station records, {daily.shape[0]} days, {daily.index.min():%Y}-{daily.index.max():%Y}")
-    st_all = st.copy()
+    st_all, mon_all = st.copy(), mon.copy()
     st, mon, merged = dedupe(st, mon)
     print(f"[gauges] {len(st)} stations after removing duplicates across datasets")
     st["chirps_km"] = chirps_matches(st)
@@ -257,7 +275,7 @@ def main() -> None:
         print(tab.to_string(index=False))
     if a.overlap:
         return
-    score(st, mon, d, tab, st_all, merged)
+    score(st, mon, d, tab, st_all, merged, mon_all)
 
 
 # Core-product pairs that are independent under BOTH shared-error explanations
@@ -299,7 +317,7 @@ def evaluate(C: np.ndarray) -> dict:
             "gauge_based": gauge_based, "model": model}
 
 
-def score(st, mon, d, tab, st_all, merged) -> None:
+def score(st, mon, d, tab, st_all, merged, mon_all) -> None:
     tb = d.window(*mv.WINDOW)
     times = d.time[tb]
     mo, yr = d.months[tb], d.years[tb]
@@ -454,7 +472,7 @@ def score(st, mon, d, tab, st_all, merged) -> None:
         e = evaluate(np.cov(X[sel], rowvar=False))
         per_cell.append({"cell": r["cell"], "gauge_based": e["gauge_based"], "rho2_gauge": e["rho2_gauge"]})
     out["per_cell"] = per_cell
-    viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d)
+    viz_export(st, st_all, merged, mon, rows, series, n_cm_ge3, X, Y, CELLS, MO, dry, valid, times, d, mon_all)
     out["overlap"] = tab.to_dict(orient="records")
     out["stations_in_chirps"] = st[st.in_chirps].name.tolist()
     mv.dump("gauges", out)
