@@ -194,6 +194,7 @@ def main() -> None:
 # reliable the gauge areal mean itself is.
 CLEAN_PAIRS = [("gpcc_full", "chirp_v3"), ("gpcc_full", "imerg_late"), ("chirp_v3", "era5"), ("imerg_late", "era5")]
 N_BOOT = 500
+MIN_GROUP = 40  # minimum cell-months for a disaggregated score
 
 
 def pooled_stats(X: np.ndarray, years: np.ndarray) -> dict:
@@ -332,6 +333,41 @@ def score(st, mon, d, tab) -> None:
             out["products"][p][name] = val[p]
             out["products"][p][f"{name}_ci"] = [float(np.percentile(v, 5)), float(np.percentile(v, 95))]
     out["n_dry_months"] = int(dry[valid, 0].sum())
+
+    # disaggregated: r^2 and dry-month hit rate against the gauges by site x calendar month and
+    # site x 5-year period, each with a year-block bootstrap. Groups under MIN_GROUP values are
+    # reported with n only (no score).
+    site_of = np.array([rows[c]["site"] for c in CELLS])
+    periods = [(2001, 2005), (2006, 2010), (2011, 2015), (2016, 2020)]
+
+    def group_scores(idx):
+        if len(idx) < MIN_GROUP:
+            return None
+        Xi, Di, Yi = X[idx], dry[idx], Y[idx]
+        C = np.corrcoef(Xi, rowvar=False)
+        r2 = {p: float(C[0, i + 1] ** 2) for i, p in enumerate(mv.P)}
+        gd = Di[:, 0] & valid[idx]
+        hit = {p: (float(Di[gd, i + 1].mean()) if gd.sum() >= 10 else None) for i, p in enumerate(mv.P)}
+        bs = []
+        for _ in range(200):
+            yy = rng.choice(np.unique(Yi), len(np.unique(Yi)))
+            j = np.concatenate([np.nonzero(Yi == y)[0] for y in yy])
+            Cb = np.corrcoef(Xi[j], rowvar=False)
+            bs.append([Cb[0, i + 1] ** 2 for i in range(len(mv.P))])
+        lo, hi = np.nanpercentile(np.array(bs), [5, 95], axis=0)
+        return {"n": int(len(idx)), "n_dry": int(gd.sum()),
+                "products": {p: {"r2": r2[p], "lo": float(lo[i]), "hi": float(hi[i]), "dry_hit": hit[p]} for i, p in enumerate(mv.P)}}
+
+    by_month, by_period = {}, {}
+    for site in ["All"] + sorted(set(site_of)):
+        sel_s = np.ones(len(X), bool) if site == "All" else (site_of == site)
+        by_month[site] = {}
+        for m in range(1, 13):
+            idx = np.nonzero(sel_s & (MO == m))[0]
+            by_month[site][m] = group_scores(idx) if len(idx) else None
+        by_period[site] = {f"{a}–{b}": group_scores(np.nonzero(sel_s & (Y >= a) & (Y <= b))[0]) for a, b in periods}
+    out["by_month"], out["by_period"] = by_month, by_period
+    out["min_group"] = MIN_GROUP
 
     # per-cell spread (no bootstrap)
     per_cell = []
