@@ -101,14 +101,30 @@ def monthly(daily: pd.DataFrame) -> pd.DataFrame:
     return tot.where(n.eq(days, axis=0))
 
 
-def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> pd.DataFrame:
-    """Same station in several datasets (within 500 m): keep the one with the most complete months."""
+def dedupe(st: pd.DataFrame, mon: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Same station in several datasets (within 500 m), e.g. a series split between
+    CE.Rain_Nc_9004 and CE.Rain_Nc at 2004: keep the record with the most complete
+    months and fill its missing months from the others. Where both have a month they
+    should agree; the kept record's value is used and disagreements over 1 mm are printed."""
     st = st.assign(nmon=mon.notna().sum().reindex(st.index).values).sort_values("nmon", ascending=False)
-    keep = []
+    mon = mon.copy()
+    keep, filled = [], 0
     for k, r in st.iterrows():
-        if all(np.hypot((r.lat - st.at[j, "lat"]) * 111, (r.lon - st.at[j, "lon"]) * 111 * np.cos(np.radians(r.lat))) > 0.5 for j in keep):
+        near = [j for j in keep
+                if np.hypot((r.lat - st.at[j, "lat"]) * 111, (r.lon - st.at[j, "lon"]) * 111 * np.cos(np.radians(r.lat))) <= 0.5]
+        if not near:
             keep.append(k)
-    return st.loc[keep]
+            continue
+        j = near[0]
+        both = mon[j].notna() & mon[k].notna()
+        bad = both & ((mon[j] - mon[k]).abs() > 1.0)
+        if bad.any():
+            print(f"[gauges] {j} vs {k}: {int(bad.sum())} months differ by >1 mm; kept {j}'s values")
+        gap = mon[j].isna() & mon[k].notna()
+        mon.loc[gap, j] = mon.loc[gap, k]
+        filled += int(gap.loc["2001-01":"2020-12"].sum())
+    print(f"[gauges] duplicates merged: {len(st) - len(keep)} records; {filled} station-months (2001-2020) filled from them")
+    return st.loc[keep], mon[keep]
 
 
 def chirps_matches(st: pd.DataFrame) -> pd.Series:
@@ -158,8 +174,7 @@ def main() -> None:
     st, daily = load_stations()
     mon = monthly(daily)
     print(f"[gauges] {len(st)} station records, {daily.shape[0]} days, {daily.index.min():%Y}-{daily.index.max():%Y}")
-    st = dedupe(st, mon)
-    mon = mon[st.index]
+    st, mon = dedupe(st, mon)
     print(f"[gauges] {len(st)} stations after removing duplicates across datasets")
     st["chirps_km"] = chirps_matches(st)
     st["in_chirps"] = st.chirps_km <= MATCH_KM
