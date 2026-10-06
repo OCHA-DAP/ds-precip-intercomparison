@@ -63,6 +63,12 @@ def nearest_km(lat, lon, pts) -> np.ndarray:
     return np.array([np.min(np.hypot((a - pts[:, 0]) * 111, (b - pts[:, 1]) * 111 * np.cos(np.radians(a)))) for a, b in zip(lat, lon)])
 
 
+def three_month(x: np.ndarray) -> np.ndarray:
+    """3-month totals ending in each month (all three months present), along axis 0."""
+    s = pd.DataFrame(x).rolling(3, min_periods=3).sum().to_numpy()
+    return s[:, 0] if x.ndim == 1 else s
+
+
 def zrows(gauge: np.ndarray, prods: np.ndarray, mo: np.ndarray, rel: np.ndarray):
     """Standardised anomalies (per calendar month) of gauge + products on the months
     where all are present and the month is rain-relevant."""
@@ -115,6 +121,7 @@ def scores(X: np.ndarray, Y: np.ndarray, MO: np.ndarray, prods: list, rng) -> di
         b = np.array([x[0][p] for x in boots])
         out["products"][p] = {"r2": float(r2[p]), "r2_ci": [float(np.percentile(b, 5)), float(np.percentile(b, 95))],
                               "spearman": sp[p], "dry_hit": float(dry[gd, ix[p]].mean()) if gd.sum() >= 10 else None,
+                              "dry_false_alarm": float((~gd[dry[:, ix[p]]]).mean()) if dry[:, ix[p]].sum() >= 10 else None,
                               "gauge_based": float(r2[p] / rg) if rg and np.isfinite(rg) else None}
     return out
 
@@ -185,7 +192,7 @@ def main() -> None:
     key = {(int(a), int(b)): i for i, (a, b) in enumerate(zip(d.cells["iy"], d.cells["ix"]))}
     gpccmon = d.extra["gpccmon_numgauge"]
     free = st[~st.in_chirps]
-    groups = {}
+    groups, groups3 = {}, {}
     cells_info = []
     for (iy, ix), grp in free.groupby(["iy", "ix"]):
         c = key.get((int(iy), int(ix)))
@@ -200,12 +207,18 @@ def main() -> None:
         z, ok = zrows(gauge, prods, mo, rel)
         if z is None:
             continue
+        # 3-month totals: windows ending in each month, compared with the same window in other
+        # years; rain-relevant if the long-term 3-month total is at least 3x the monthly threshold
+        clim3 = M.monthly_clim(three_month(d.precip[mv.REF_CLIM][tb_clim][:, [c]]), d.months[tb_clim])[:, 0]
+        z3, ok3 = zrows(three_month(gauge), three_month(prods), mo, clim3[mo - 1] >= 3 * mv.RAIN_RELEVANT)
         tier = "1 station" if np.median(n[ok]) < 1.5 else ("2 stations" if np.median(n[ok]) < 2.5 else "3+ stations")
         region = grp.region.mode().iloc[0]
         cells_info.append({"region": region, "tier": tier, "months": int(ok.sum()), "stations": len(grp),
                            "gpccmon_median": float(np.nanmedian(gpccmon[tb][:, c])), "gpccmon_frac_months_gt0": float(np.nanmean(gpccmon[tb][:, c] > 0))})
         for k_ in (("All", "All"), (region, "All"), ("All", tier), (region, tier)):
             groups.setdefault(k_, []).append((z, yr[ok], mo[ok]))
+            if z3 is not None:
+                groups3.setdefault(k_, []).append((z3, yr[ok3], mo[ok3]))
     print(f"[tahmo] scored cells: {len(cells_info)}")
     res = {}
     for (reg, tier), parts in sorted(groups.items()):
@@ -214,6 +227,12 @@ def main() -> None:
             continue
         res[f"{reg}|{tier}"] = {"region": reg, "tier": tier, "cells": len(parts), **scores(X, Y, MO, PRODS, rng)}
         print(f"[tahmo] {reg:16} {tier:12} cells {len(parts):4} months {len(X):6}")
+    res3 = {}
+    for (reg, tier), parts in sorted(groups3.items()):
+        X, Y, MO = (np.concatenate(v) for v in zip(*parts))
+        if len(X) < 60:
+            continue
+        res3[f"{reg}|{tier}"] = {"region": reg, "tier": tier, "cells": len(parts), **scores(X, Y, MO, PRODS, rng)}
     ci = pd.DataFrame(cells_info)
     print("[tahmo] calibrating the single-station tier on AMMA-CATCH ...")
     cal = amma_single_station_calibration(d, rng)
@@ -222,7 +241,7 @@ def main() -> None:
            "cells_by_region_tier": ci.groupby(["region", "tier"]).size().rename("cells").reset_index().to_dict(orient="records"),
            "gpccmon_in_cells": {"median_of_medians": float(ci.gpccmon_median.median()), "share_cells_median_gt0": float((ci.gpccmon_median > 0).mean()),
                                 "by_tier": ci.groupby("tier").gpccmon_median.agg(["median", "mean"]).to_dict(orient="index")},
-           "groups": res, "amma_calibration": cal}
+           "groups": res, "groups_3month": res3, "amma_calibration": cal}
     out["months_dropped_no_variation"] = DROPPED_NO_VARIATION[0]
     print(f"[tahmo] months dropped because a source had no year-to-year variation that calendar month: {DROPPED_NO_VARIATION[0]}")
     CACHE.mkdir(parents=True, exist_ok=True)
