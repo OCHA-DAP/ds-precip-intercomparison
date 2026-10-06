@@ -235,7 +235,7 @@ def score(st, mon, d, tab) -> None:
     free = st[~st.in_chirps].copy()
     free["iy"], free["ix"] = cell_of(free.lat, free.lon)
     per = mon.reindex(pd.PeriodIndex(times, freq="M"))
-    rows, X, Y, CELLS = [], [], [], []
+    rows, X, Y, CELLS, MO = [], [], [], [], []
     for (iy, ix), grp in free.groupby(["iy", "ix"]):
         c = key.get((iy, ix))
         if c is None:
@@ -256,13 +256,14 @@ def score(st, mon, d, tab) -> None:
         z = z[ok]
         X.append(z)
         Y.append(yr[ok])
+        MO.append(mo[ok])
         CELLS.append(np.full(ok.sum(), len(rows)))
         rows.append({"cell": f"{-89.75 + 0.5 * iy:.2f}N {-179.75 + 0.5 * ix:.2f}E", "lat": -89.75 + 0.5 * iy, "lon": -179.75 + 0.5 * ix,
                      "stations": int(len(grp)), "months": int(ok.sum()), "median_stations_per_month": float(np.median(n[ok])),
                      "site": "Benin (Ouémé)" if iy < 200 else ("Mali (Gourma)" if ix < 360 else "Niger (Niamey)")})
     if not rows:
         raise ValueError("no cell has enough independent gauge-months")
-    X, Y, CELLS = np.vstack(X), np.concatenate(Y), np.concatenate(CELLS)
+    X, Y, CELLS, MO = np.vstack(X), np.concatenate(Y), np.concatenate(CELLS), np.concatenate(MO)
     print(f"[gauges] {len(rows)} cells, {len(X)} cell-months scored")
     stats = pooled_stats(X, Y)
     yrs = sorted(stats)
@@ -292,6 +293,46 @@ def score(st, mon, d, tab) -> None:
     out["era5_over_late"] = {"gauge": est["r2_vs_gauge"]["era5"] / est["r2_vs_gauge"]["imerg_late"],
                              "gauge_ci": ci(lambda b: b["r2_vs_gauge"]["era5"] / b["r2_vs_gauge"]["imerg_late"]),
                              **{k: ratio(est["model"], k) for k in mv.SCENARIOS}}
+    # rank-based scores against the gauges: Spearman correlation of the anomalies, and the
+    # dry-month hit rate (gauge month in its driest third for that cell and calendar month ->
+    # how often the product also puts it in its own driest third) with the false-alarm share
+    dry = np.zeros_like(X, dtype=bool)
+    for c in np.unique(CELLS):
+        for m in np.unique(MO[CELLS == c]):
+            sel = (CELLS == c) & (MO == m)
+            if sel.sum() < 6:
+                continue
+            q = np.nanpercentile(X[sel], 100 / 3, axis=0)
+            dry[sel] = X[sel] <= q
+    valid = np.zeros(len(X), bool)
+    for c in np.unique(CELLS):
+        for m in np.unique(MO[CELLS == c]):
+            sel = (CELLS == c) & (MO == m)
+            valid[sel] = sel.sum() >= 6
+
+    def rank_scores(idx):
+        Xi, Di = X[idx], dry[idx]
+        R = pd.DataFrame(Xi).rank().to_numpy()
+        sp = {p: float(np.corrcoef(R[:, 0], R[:, i + 1])[0, 1]) for i, p in enumerate(mv.P)}
+        gd = Di[:, 0]
+        hit = {p: float(Di[gd, i + 1].mean()) for i, p in enumerate(mv.P)}
+        fa = {p: float((~gd[Di[:, i + 1]]).mean()) for i, p in enumerate(mv.P)}
+        return sp, hit, fa
+
+    vidx = np.nonzero(valid)[0]
+    sp, hit, fa = rank_scores(vidx)
+    bs = []
+    for _ in range(N_BOOT):
+        yy = rng.choice(yrs, len(yrs))
+        idx = np.concatenate([vidx[Y[vidx] == y] for y in yy])
+        bs.append(rank_scores(idx))
+    for i, (name, val) in enumerate((("spearman", sp), ("dry_hit", hit), ("dry_false_alarm", fa))):
+        for p in mv.P:
+            v = np.array([b[i][p] for b in bs])
+            out["products"][p][name] = val[p]
+            out["products"][p][f"{name}_ci"] = [float(np.percentile(v, 5)), float(np.percentile(v, 95))]
+    out["n_dry_months"] = int(dry[valid, 0].sum())
+
     # per-cell spread (no bootstrap)
     per_cell = []
     for i, r in enumerate(rows):
