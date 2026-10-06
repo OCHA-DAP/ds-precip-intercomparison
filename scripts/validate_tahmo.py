@@ -169,6 +169,65 @@ def amma_single_station_calibration(d, rng) -> dict:
             "r2_ratio_single_over_cell": ratio, "rank_spearman": float(rank_c.corr(rank_s, method="spearman"))}
 
 
+def viz_export(st_all, st, mon, scored_ids, groups) -> None:
+    """Network map, selection funnel and record history for the explainer: station metadata
+    and counts only, no rainfall values (TAHMO licence). -> cache/tahmo/viz.json"""
+    import geopandas as gpd
+    from shapely.geometry import box
+
+    per = mon.loc[f"{WINDOW[0]}-01":f"{WINDOW[1]}-12"]
+    complete = per.notna().sum()
+    fate = {}
+    for _, r in st_all.iterrows():
+        sid = r.id
+        if r.country_code not in REGION:
+            fate[sid] = ("outside", "outside Africa or the four scored regions")
+        elif bool(st.set_index("id").at[sid, "in_chirps"]):
+            fate[sid] = ("chirps", f"within {vg.MATCH_KM:g} km of a CHIRPS v3 station: removed")
+        elif complete.get(sid, 0) == 0:
+            fate[sid] = ("nodata", "no complete month 2015-2025")
+        elif sid in scored_ids:
+            fate[sid] = ("used", "used")
+        else:
+            fate[sid] = ("fewmonths", "too few scored months in its cell (rain season, all products present)")
+    years = list(range(WINDOW[0], WINDOW[1] + 1))
+    stations = []
+    for _, r in st_all.iterrows():
+        cm = mon[r.id] if r.id in mon.columns else pd.Series(dtype=float)
+        yrs_with = sorted({p.year for p in cm.dropna().index}) if len(cm) else []
+        stations.append({"lat": round(float(r.latitude), 3), "lon": round(float(r.longitude), 3), "country": r.country_code,
+                         "fate": fate[r.id][0], "why": fate[r.id][1], "installed": str(r.installation_date)[:10],
+                         "complete_months": int(cm.notna().sum()) if len(cm) else 0,
+                         "years_with_data": len(yrs_with)})
+    by_country = {}
+    for cc, grp in st_all.groupby("country_code"):
+        cols = [c for c in grp.id if c in mon.columns]
+        sub = mon[cols]
+        by_country[cc] = {"stations": int(len(grp)), "region": REGION.get(cc, "outside"),
+                          "per_year": [int(sub[sub.index.year == y].notna().sum().sum()) for y in years],
+                          "active_per_year": [int((sub[sub.index.year == y].notna().sum() > 0).sum()) for y in years]}
+    funnel = [
+        {"step": "TAHMO stations in the 26 country files", "n": len(st_all), "unit": "stations"},
+        {"step": "In Africa, in the four scored regions", "n": int(st_all.country_code.isin(REGION).sum()), "unit": "stations"},
+        {"step": "After removing stations CHIRPS v3 uses", "n": int((~st.in_chirps).sum()), "unit": "stations"},
+        {"step": "With at least one complete month 2015-2025", "n": int(sum(1 for v in fate.values() if v[0] in ("used", "fewmonths"))), "unit": "stations"},
+        {"step": "...and in a scored cell: used", "n": int(sum(1 for v in fate.values() if v[0] == "used")), "unit": "stations"},
+        {"step": "Scored cell-months (monthly)", "n": int(sum(len(z) for parts in [groups.get(("All", "All"), [])] for z, _, _ in parts)), "unit": "cell-months"},
+    ]
+    bbox = (-20.0, -36.0, 55.0, 38.0)
+    gdf = gpd.read_file(mv.CACHE / "ne_10m_admin_0_countries.zip")[["NAME", "geometry"]]
+    gdf = gdf[gdf.intersects(box(*bbox))].copy()
+    gdf["geometry"] = gdf.geometry.intersection(box(*bbox)).simplify(0.15)
+    rings = []
+    for geom in gdf.geometry:
+        for pg in ([geom] if geom.geom_type == "Polygon" else list(getattr(geom, "geoms", []))):
+            if pg.geom_type == "Polygon" and pg.area > 0.05:
+                rings.append(np.round(np.asarray(pg.exterior.coords), 2).tolist())
+    (CACHE / "viz.json").write_text(json.dumps({"stations": stations, "funnel": funnel, "years": years, "by_country": by_country,
+                                                "bbox": bbox, "countries": rings, "region_of": REGION}, separators=(",", ":")))
+    print(f"[tahmo] wrote {CACHE / 'viz.json'}")
+
+
 def main() -> None:
     rng = np.random.default_rng(0)
     d = load()
@@ -176,6 +235,7 @@ def main() -> None:
     daily = pd.read_parquet(CACHE / "daily.parquet").pivot(index="date", columns="station", values="precip").sort_index()
     daily.index = pd.DatetimeIndex(daily.index)
     mon = vg.monthly(daily.asfreq("D"))
+    st_all = st.copy()
     st = st[st.country_code.isin(REGION)].copy()
     st["region"] = st.country_code.map(REGION)
     print(f"[tahmo] {len(st)} African stations in the mapped regions")
@@ -193,6 +253,7 @@ def main() -> None:
     gpccmon = d.extra["gpccmon_numgauge"]
     free = st[~st.in_chirps]
     groups, groups3 = {}, {}
+    scored_ids = set()
     cells_info = []
     for (iy, ix), grp in free.groupby(["iy", "ix"]):
         c = key.get((int(iy), int(ix)))
@@ -211,6 +272,7 @@ def main() -> None:
         # years; rain-relevant if the long-term 3-month total is at least 3x the monthly threshold
         clim3 = M.monthly_clim(three_month(d.precip[mv.REF_CLIM][tb_clim][:, [c]]), d.months[tb_clim])[:, 0]
         z3, ok3 = zrows(three_month(gauge), three_month(prods), mo, clim3[mo - 1] >= 3 * mv.RAIN_RELEVANT)
+        scored_ids.update(g.columns[g.notna().any()])
         tier = "1 station" if np.median(n[ok]) < 1.5 else ("2 stations" if np.median(n[ok]) < 2.5 else "3+ stations")
         region = grp.region.mode().iloc[0]
         cells_info.append({"region": region, "tier": tier, "months": int(ok.sum()), "stations": len(grp),
@@ -246,6 +308,7 @@ def main() -> None:
     print(f"[tahmo] months dropped because a source had no year-to-year variation that calendar month: {DROPPED_NO_VARIATION[0]}")
     CACHE.mkdir(parents=True, exist_ok=True)
     (CACHE / "scores.json").write_text(json.dumps(mv.clean(out), separators=(",", ":")))
+    viz_export(st_all, st, mon, scored_ids, groups)
     print(f"[tahmo] wrote {CACHE / 'scores.json'}")
 
 
