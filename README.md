@@ -49,6 +49,10 @@ temperature (snow masking), CHIRPS v3 ERA5-fill fraction and station density.
    `/report/` (findings, maps, tables, country explorer) and `/explorer/` (pick two products and a
    period → per-pixel correlation map + year-labelled scatter for a pixel, admin-1 unit or country,
    all computed in the browser).
+4. **Gauge validation** — products are scored against independent rain gauges (AMMA-CATCH in
+   West Africa, TAHMO across Africa). Sources, licences and how to restore the raw files are in
+   [`docs/gauges/README.md`](docs/gauges/README.md) (`scripts/gauges_blob.py download`; TAHMO is
+   re-downloaded by hand under its licence).
 
 ```bash
 uv sync
