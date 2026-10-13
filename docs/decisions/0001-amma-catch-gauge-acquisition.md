@@ -102,6 +102,8 @@ Eleven linked choices. For each: what was chosen, then the rejected alternatives
     `DONE` file created last as the signal to the analysing session.
     *Rejected:* committing data (licence attribution and repo size) and leaving files in `data/` under
     Chrome's names.
+    *Update 2026-10-13:* also mirrored to the dev blob (`raw/gauges/amma-catch/`, sha256-verified) by
+    `scripts/gauges_blob.py`; see ADR 0002.
 
 11. **Cleanup: Chrome's own saved copies in `data/` were deleted only after their sha256 matched the logged
     copy.** Held temp files were left for the user to discard in Chrome, since deleting them under an open
