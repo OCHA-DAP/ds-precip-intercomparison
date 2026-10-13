@@ -8,6 +8,10 @@ corrupt file. See docs/gauges/README.md for what each source is and how it was o
     python scripts/gauges_blob.py upload     # data/gauges/ -> dev projects/<prefix>/raw/gauges/
     python scripts/gauges_blob.py download   # and back, sha256-verified
 
+Neither direction deletes: `download` writes the manifest's files and leaves anything else
+in data/gauges/ alone, and `upload` sends whatever is present locally (unchanged files are
+skipped). To retire a file, delete it locally and on the blob, then upload.
+
 TAHMO is NOT uploaded: its research licence says "Research use does not allow for sharing
 of the data to any other person or organization", and the team blob is shared. It lives on
 one machine; re-download it from the TAHMO portal and check it against

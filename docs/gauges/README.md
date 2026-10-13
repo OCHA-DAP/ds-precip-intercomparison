@@ -48,9 +48,11 @@ keeps updating its data, so a new extraction won't match the old checksums.
 | Script | Reads | Writes |
 |---|---|---|
 | `scripts/validate_gauges.py` | the 10 daily AMMA-CATCH zips | `site/multivariate/data/gauges.json`, `gauge_viz.json` |
-| `scripts/validate_3month.py` | AMMA-CATCH (via `gauge_viz.json`) and TAHMO (via the daily cache) | `site/multivariate/data/gauges_3month.json` |
+| `scripts/validate_3month.py` | AMMA-CATCH only (via `gauge_viz.json`; borrows helper functions from `validate_tahmo.py`) | `site/multivariate/data/gauges_3month.json` |
 | `scripts/tahmo_daily.py` | the 26 TAHMO zips | `cache/tahmo/daily.parquet`, `cache/tahmo/stations.parquet` (local only) |
-| `scripts/validate_tahmo.py` | the TAHMO daily cache | `cache/tahmo/scores.json` (aggregate scores), `cache/tahmo/viz.json` |
+| `scripts/validate_tahmo.py` | the TAHMO daily cache | `cache/tahmo/scores.json` (aggregate monthly and 3-month scores), `cache/tahmo/viz.json` |
+
+Nothing TAHMO-derived is written under `site/` today; TAHMO results stay in `cache/tahmo/` (git-ignored, local).
 
 `cache/tahmo/viz.json` contains **TAHMO station coordinates** (for a network map). Don't publish it, or anything
 built from it, without TAHMO's written permission.
