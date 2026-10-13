@@ -10,14 +10,14 @@
 # target still runs with stage=dev — the two axes are independent
 # (KB infrastructure/databricks.md).
 #
-#   databricks bundle validate -t prod -p default
-#   databricks bundle deploy   -t prod -p default
-#   databricks bundle run precip_ingest -t prod -p default
+#   databricks bundle validate -t prod -p DEFAULT
+#   databricks bundle deploy   -t prod -p DEFAULT
+#   databricks bundle run precip_ingest -t prod -p DEFAULT
 #
 # Task chains are serialised per source server (UCSB/CHC, NOAA PSL, DWD, UEA) to
 # stay polite and to bound memory on each single-node cluster (3 chains max per
 # cluster); the three clusters run in parallel. Smoke test first:
-#   databricks bundle run precip_ingest -t prod -p default \
+#   databricks bundle run precip_ingest -t prod -p DEFAULT \
 #     --params start=2010-01,end=2010-12,subdir=smoke
 
 bundle:
@@ -233,12 +233,12 @@ targets:
     mode: development
     default: true
     workspace:
-      profile: default
+      profile: DEFAULT
 
   prod:
     mode: production
     workspace:
-      profile: default
+      profile: DEFAULT
       root_path: /Workspace/Users/adm.tdowning@global.un.org/.bundle/${bundle.name}/${bundle.target}
     run_as:
       user_name: adm.tdowning@global.un.org
