@@ -53,7 +53,7 @@ temperature (snow masking), CHIRPS v3 ERA5-fill fraction and station density.
 ```bash
 uv sync
 uv run python scripts/ingest.py era5 --start 2010-01 --end 2010-12 --no-upload   # local test
-databricks bundle deploy -t prod -p default && databricks bundle run precip_ingest -t prod -p default
+databricks bundle deploy -t prod -p DEFAULT && databricks bundle run precip_ingest -t prod -p DEFAULT
 ```
 
 Credentials: blob SAS via `DSCI_AZ_BLOB_*` (ocha-stratus); NASA Earthdata via
