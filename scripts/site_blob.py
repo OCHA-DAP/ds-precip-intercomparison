@@ -26,7 +26,7 @@ from azure.storage.blob import ContentSettings  # noqa: E402
 from src.constants import PROJECT_PREFIX  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1] / "site"
-SUBDIRS = ("report/data", "report/fig", "explorer/data")
+SUBDIRS = ("report/data", "report/fig", "explorer/data", "which-product/data")
 PREFIX = f"{PROJECT_PREFIX}/site"
 MANIFEST = "manifest.json"
 
@@ -36,9 +36,12 @@ def _sha(b: bytes) -> str:
 
 
 def upload() -> None:
+    # the manifest is rebuilt from local files only, so a section missing here would vanish from the site
+    empty = [sub for sub in SUBDIRS if not any(p.is_file() for p in (ROOT / sub).rglob("*"))]
+    if empty:
+        raise SystemExit(f"no local files in {empty}: generate them, or run `site_blob.py download` first "
+                         "and regenerate only what changed")
     files = sorted(p for sub in SUBDIRS for p in (ROOT / sub).rglob("*") if p.is_file())
-    if not files:
-        raise SystemExit("nothing to upload (run analyze.py and figures.py first)")
     cc = stratus.get_container_client("projects", stage="dev", write=True)
     manifest = {"created": datetime.now(timezone.utc).isoformat(timespec="seconds"), "files": {}}
     # unchanged files (same sha256 as the current manifest) are not re-uploaded
