@@ -17,8 +17,8 @@ README has the product table and pipeline; this file is the non-obvious stuff.
   `site/explorer/data/*.bin` (+ `meta.json`, `cells.bin`; layout in the script docstring).
   Generated site output is NOT committed: `scripts/site_blob.py upload` parks it on dev blob
   (skips unchanged files by sha256), the Pages workflow downloads and verifies it. `upload`
-  rebuilds the manifest from local files only, so it refuses if any section is missing locally:
-  `download` first.
+  rebuilds the manifest from local files only, so it refuses if any published file is missing
+  locally: `download` first (`--drop` removes files on purpose).
 - `site/which-product/` (page code, committed) reads `data/*.json` from `scripts/which_product_data.py`,
   which packs `site/multivariate/data/` and `cache/tahmo/` for the public site (TAHMO scores and
   funnel counts only; CRU's per-cell monthly values dropped).
