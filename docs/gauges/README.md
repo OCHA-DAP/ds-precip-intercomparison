@@ -51,11 +51,15 @@ keeps updating its data, so a new extraction won't match the old checksums.
 | `scripts/validate_3month.py` | AMMA-CATCH only (via `gauge_viz.json`; borrows helper functions from `validate_tahmo.py`) | `site/multivariate/data/gauges_3month.json` |
 | `scripts/tahmo_daily.py` | the 26 TAHMO zips | `cache/tahmo/daily.parquet`, `cache/tahmo/stations.parquet` (local only) |
 | `scripts/validate_tahmo.py` | the TAHMO daily cache | `cache/tahmo/scores.json` (aggregate monthly and 3-month scores), `cache/tahmo/viz.json` |
+| `scripts/which_product_data.py` | the AMMA-CATCH outputs above, `cache/tahmo/scores.json`, the funnel from `cache/tahmo/viz.json` | `site/which-product/data/` for the public `/which-product/` page |
 
-Nothing TAHMO-derived is written under `site/` today; TAHMO results stay in `cache/tahmo/` (git-ignored, local).
+The only TAHMO-derived files under `site/` are `site/which-product/data/tahmo_scores.json` (regional and tier scores)
+and `tahmo_funnel.json` (selection counts). `which_product_data.py` refuses to write them if they carry station
+fields.
 
-`cache/tahmo/viz.json` contains **TAHMO station coordinates** (for a network map). Don't publish it, or anything
-built from it, without TAHMO's written permission.
+`cache/tahmo/viz.json` contains **TAHMO station coordinates** (for a network map). Don't put it, or anything
+built from it, into git or on GitHub Pages. The explainer artifact "Which Rainfall Product Where" uses it and is
+private for now.
 
 ## Rules that come with the data
 
@@ -78,7 +82,8 @@ at least acknowledge, the data providers.
 
 In practice:
 - Keep the files on one machine, and off the team blob, Databricks and email.
-- Publish only aggregate scores (by region or station tier), never station series or coordinates.
+- Nothing in git or on GitHub Pages carries station series or coordinates; public outputs get aggregate scores
+  only (by region or station tier).
 - Whether even aggregate scores count as a "derived product" is still to be confirmed with TAHMO (see open items).
 
 ## TAHMO in more detail

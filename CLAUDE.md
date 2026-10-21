@@ -16,7 +16,12 @@ README has the product table and pipeline; this file is the non-obvious stuff.
   `scripts/figures.py` → `site/report/fig/*.png`; `scripts/explorer_data.py` →
   `site/explorer/data/*.bin` (+ `meta.json`, `cells.bin`; layout in the script docstring).
   Generated site output is NOT committed: `scripts/site_blob.py upload` parks it on dev blob
-  (skips unchanged files by sha256), the Pages workflow downloads and verifies it.
+  (skips unchanged files by sha256), the Pages workflow downloads and verifies it. `upload`
+  rebuilds the manifest from local files only, so it refuses if any section is missing locally:
+  `download` first.
+- `site/which-product/` (page code, committed) reads `data/*.json` from `scripts/which_product_data.py`,
+  which packs `site/multivariate/data/` and `cache/tahmo/` for the public site (TAHMO scores and
+  funnel counts only; CRU's per-cell monthly values dropped).
 - Independent gauges (AMMA-CATCH, TAHMO) in git-ignored `data/gauges/`; map, licences and
   re-acquisition in `docs/gauges/README.md`. `scripts/gauges_blob.py upload|download` syncs them
   with dev blob `raw/gauges/` — except TAHMO (licence: one machine only; re-download by hand,
@@ -37,8 +42,8 @@ README has the product table and pipeline; this file is the non-obvious stuff.
   GPCC is partly circular, and 2021 is a calibration break.
 - CHIRPS v3 stations are undercatch-corrected (wetter than v2 by design); gaps filled with ERA5.
 - CRU TS is ODbL: publish derived statistics only, never the regridded field.
-- TAHMO research licence: no sharing of the data or derived products — never put it on blob or
-  publish station series/coordinates (`cache/tahmo/viz.json` holds coordinates); aggregate
-  scores only, pending TAHMO's answer (ADR 0002).
+- TAHMO research licence: no sharing of the data or derived products — never put the raw files on
+  blob, and never put station series or coordinates in git or on Pages (`cache/tahmo/viz.json`
+  holds coordinates); public outputs get aggregate scores only, pending TAHMO's answer (ADR 0002).
 - Reference choice: GPCC Full Data, stratified by its gauge count. No ensemble-median
   reference — most products share GPCC/GHCN stations, so a median is anchored to GPCC anyway.
