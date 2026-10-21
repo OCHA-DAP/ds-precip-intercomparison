@@ -29,6 +29,7 @@ notes, so nothing was reproducible from anywhere else. Two questions: how to tak
    blob, Databricks or email. The analysis reduces them locally (`tahmo_daily.py` → `cache/tahmo/`) and publishes
    aggregate scores only (by region and stations-per-cell tier); no station series or coordinates. A checksum list
    is committed (`docs/gauges/tahmo.sha256`), so a re-download from the portal can be verified byte for byte.
+   The explainer artifact "Which Rainfall Product Where", which includes TAHMO results, is private for now.
    *Rejected:*
    * Putting TAHMO on the team blob: shared storage counts as sharing under the licence.
    * The portal's "Data export" (per-station exports): the account isn't configured for it, it's capped at about
@@ -54,8 +55,8 @@ notes, so nothing was reproducible from anywhere else. Two questions: how to tak
 * Good: a TAHMO re-download can be proven identical (or shown to have changed) with `shasum -c`.
 * Bad: TAHMO exists as one copy on one laptop. Losing it means re-downloading from the portal, which needs an
   active research account (access is time-limited and renewable), and TAHMO may re-issue the files in the meantime.
-* Bad: `cache/tahmo/viz.json` holds TAHMO station coordinates for a network map. It must not be published, or used
-  for anything published, without TAHMO's permission.
+* Bad: `cache/tahmo/viz.json` holds TAHMO station coordinates for a network map. It must not go into git or onto
+  GitHub Pages without TAHMO's permission.
 * Open: whether aggregate scores count as "derived products". A question to TAHMO is drafted (in `SCOUTING.md`). If
   they also allow team storage, revisit decision 1 and remove `tahmo` from `LOCAL_ONLY` in `gauges_blob.py`.
 
