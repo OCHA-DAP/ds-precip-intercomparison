@@ -43,7 +43,7 @@
   <p class="muted">"Used" = stations that contributed at least one scored month. The 1990–2004 Niamey dataset has 166 stations but only 2001–2004 falls in the window; the Gourma transect, Cotonou and the other Niger towns have too few gauges in any one 0.5° cell.</p>
 
   <h4 class="step">1. Where the gauges are, and which were used</h4>
-  <p>Every gauge record in the ten daily AMMA-CATCH datasets, coloured by what happened to it. Squares are the 0.5° grid cells that were scored; the products estimate rain for these squares. Hover a dot for the station and the reason; click a square to look at it in step 5.</p>
+  <p>Every gauge record in the ten daily AMMA-CATCH datasets, coloured by what happened to it. Squares are the 0.5° grid cells that were scored; the products estimate rain for these squares. Each square is lettered by site (Ouémé A–E, Niamey A–D, Gourma A), and the charts below use the same names. Hover a dot for the station and the reason, or a square for its coordinates; click a square to look at it in step 5.</p>
   <div class="controls"><span class="seg" id="gmap-zoom"></span></div>
   <div class="mapgrid" style="grid-template-columns:minmax(0,1fr) 260px">
     <div style="min-width:0"><svg id="gmap" role="img" aria-label="Map of AMMA-CATCH rain gauges and the grid cells used"></svg></div>
@@ -222,6 +222,7 @@
     <select id="map-layer"></select>
     <span class="seg" id="map-scale"></span>
   </div>
+  <p class="muted" id="map-status">Loading the map (about 2 MB)…</p>
   <div class="mapgrid">
     <div class="mapbox"><canvas class="map" id="map-canvas" width="720" height="200"></canvas><div class="legend" id="map-legend"></div></div>
     <div class="panel" id="cell-panel"><h4>Click a cell</h4><p class="muted">The panel lists each product's ρ² at that cell, monthly and 3-month.</p></div>
