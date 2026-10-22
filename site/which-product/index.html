@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which rainfall product where — Precipitation Intercomparison</title>
+<meta name="description" content="Which observed rainfall product to trust in which region, checked against independent rain gauges in Africa (AMMA-CATCH, TAHMO) and estimated elsewhere from how the products agree.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@700&family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="which-product.css">
+</head>
+<body>
+<a class="home-link" href="../">← Precipitation intercomparison</a>
+<div class="wrap">
+<header class="top">
+  <p class="eyebrow">Precipitation intercomparison · multivariate analysis · 2001–2020</p>
+  <h1>Which rainfall product should we trust where?</h1>
+  <p>The <a href="../explorer/">correlation explorer</a> shows where twelve observed rainfall products agree and disagree. Agreement alone cannot say which product is right: products that share rain gauges agree because they share them. This page answers which product to use, checks the answer against independent rain gauges where they exist, and shows how the products relate to each other.</p>
+</header>
+<nav class="toc" aria-label="Sections">
+  <a href="#answer">Answer</a><a href="#gauges">Gauges</a><a href="#tahmo">TAHMO</a><a href="#yardsticks">Compared against?</a><a href="#findings">Findings</a><a href="#picture">One picture</a><a href="#how">How it works</a><a href="#dependency">Shared error</a>
+  <a href="#skill">Skill</a><a href="#decide">Which product</a><a href="#map">Map</a><a href="#robust">Robustness</a><a href="#method">Method</a>
+</nav>
+<main>
+<section id="answer">
+  <h2>The answer</h2>
+  <div class="callout" id="answer-box"><p><b>It depends on the region.</b> For drought triggers on 3-month rainfall, checked against two independent gauge networks:</p><ul><li><b>West Africa and the Sahel: CHIRPS v3.</b> Against the dense AMMA-CATCH gauges it catches 68% of dry 3-month periods (r² 0.53), against 62% for IMERG Late (0.37) and 54% for ERA5 (0.24); chance is 33%. TAHMO stations across West Africa agree: CHIRPS v3 61%, IMERG Late 54%, ERA5 46%. Do not use ERA5 for rainfall triggers here.</li><li><b>East Africa: IMERG Late or CHIRPS v3.</b> Against TAHMO (71 cells) IMERG Late scores r² 0.40 and catches 65% of dry periods, CHIRPS v3 0.35 and 62%: within noise of each other. IMERG Late arrives within a day, CHIRPS v3 in about three weeks.</li><li><b>Southern Africa: no clear winner yet.</b> ERA5 (r² 0.33) and IMERG Late (0.31) track 3-month anomalies better than CHIRPS v3 (0.23), but all three catch about the same share of dry periods (61%–62%), from only 21 cells.</li><li><b>Everywhere:</b> IMERG Final is as good or better but arrives about 3.5 months late. Gauge-only products are weak wherever stations are sparse, and CRU has almost no African stations after 2015.</li><li><b>The season matters.</b> In the core rains (May–September) CHIRPS v3 is the best or joint-best near-real-time product at both sites (r² 0.50–0.62) and ERA5 is very poor (0.11–0.24). At the edges of the season IMERG Late does as well or better: 0.71 at onset in Benin (March) and 0.64 at the end of the season around Niamey (October, against 0.34 for CHIRPS v3). For a trigger that watches the first or last month of the season, check IMERG Late alongside CHIRPS v3. Per-month samples are small (about 60–80 values), so these edge-of-season differences are indicative.</li><li><b>Outside Africa</b> this analysis has no independent gauges; the estimates favour ERA5 and IMERG Final in Asia and Europe, but they misjudged ERA5 against IMERG Late where gauges could check them, so check locally.</li></ul></div>
+</section>
+
+<section id="gauges">
+  <h2>Checked against independent rain gauges</h2>
+  <p>The only real measurement on this page. AMMA-CATCH runs dense research networks of rain gauges in West Africa, with 120 gauges in the cells used here. They are not used by any of the twelve products: GPCC used 0–1 gauges a month in these cells, and the 8 AMMA gauges that also appear in CHIRPS v3's station lists were left out. Each cell's monthly rainfall is the average of at least three complete gauge-months, which is close to the true area average rather than one point.</p>
+  <p class="muted">10 cells of 0.5° (Benin (Ouémé), Mali (Gourma), Niger (Niamey)), 1,159 cell-months in rain-season months, 2001–2020; a median of 3–14 gauges per cell-month. West Africa only: a strong local test, not a global verdict.</p>
+
+  <h3>How it was done, step by step</h3>
+  <p>Every picture below is drawn from the same run that produced the scores, so each step can be checked.</p>
+
+  <h4 class="step">0. What gauge data exists, and which years are used</h4>
+  <p>The gauges come from ten AMMA-CATCH daily datasets, each with its own sites and years: Niamey from 1990, Benin from 1999, most of Gourma only 2005–2011. The scores use <b>2001–2020</b>, because that is when every product has data. GPCC Full, one of the products and one of the four yardsticks, ends in 2020. The Benin and Niamey gauges continue to 2025, so the check could be extended by five years with GPCC Monitoring as the gauge yardstick instead. Darker cells mean more complete station-months that year; the outlined band is the scoring window.</p>
+  <div class="tablewrap"><svg id="coverage" role="img" aria-label="Years covered by each gauge dataset and each product"></svg></div>
+  <div class="tablewrap"><table class="t" id="ds-table"></table></div>
+  <p class="muted">"Used" = stations that contributed at least one scored month. The 1990–2004 Niamey dataset has 166 stations but only 2001–2004 falls in the window; the Gourma transect, Cotonou and the other Niger towns have too few gauges in any one 0.5° cell.</p>
+
+  <h4 class="step">1. Where the gauges are, and which were used</h4>
+  <p>Every gauge record in the ten daily AMMA-CATCH datasets, coloured by what happened to it. Squares are the 0.5° grid cells that were scored; the products estimate rain for these squares. Hover a dot for the station and the reason; click a square to look at it in step 5.</p>
+  <div class="controls"><span class="seg" id="gmap-zoom"></span></div>
+  <div class="mapgrid" style="grid-template-columns:minmax(0,1fr) 260px">
+    <div style="min-width:0"><svg id="gmap" role="img" aria-label="Map of AMMA-CATCH rain gauges and the grid cells used"></svg></div>
+    <div class="panel" id="gmap-legend"></div>
+  </div>
+
+  <h4 class="step">2. From gauge records to scored months</h4>
+  <div id="funnel"></div>
+  <p class="muted">A month counts for a station only if every day has a value the network marked as quality-checked. Days the network filled from a backup bucket after a gauge failed are treated as missing. A cell-month needs at least 3 such stations, so it is an area average, not a single point. "Rain-season months" are months with at least 10 mm in GPCC's long-term average for that cell.</p>
+
+  <h4 class="step">3. Do the products already use these gauges?</h4>
+  <p>If a product was built from these gauges, comparing them would be marking it against its own answers. For each scored cell: how many AMMA gauges report in a typical rainy-season month, against how many gauges GPCC and CHIRPS v3 used in that cell. GPCC uses 0–1, so it is not built from them. AMMA gauges within 2 km of a CHIRPS v3 station were removed (red dots in step 1).</p>
+  <div><svg id="indep" role="img" aria-label="Gauges per cell: AMMA against GPCC and CHIRPS v3"></svg></div>
+
+  <h4 class="step">4. When each cell has data</h4>
+  <p>Complete station-months per cell and year (darker = more). The scores use 2001–2020 (outlined), the years every product covers.</p>
+  <div class="tablewrap"><svg id="avail" role="img" aria-label="Complete station-months per cell and year"></svg></div>
+
+  <h4 class="step">5. What is compared: one cell, month by month</h4>
+  <p>The gauge average (black) against products for one cell, as monthly totals in mm. Dots on the gauge line mark the months that were scored; the gaps are dry-season months or months without three complete gauges.</p>
+  <div class="controls">
+    <label for="ts-cell">Cell</label><select id="ts-cell"></select>
+    <label for="ts-period">Years</label><select id="ts-period"></select>
+    <span id="ts-prods" class="seg"></span>
+  </div>
+  <div><svg id="gts" role="img" aria-label="Monthly rainfall, gauges against products"></svg></div>
+
+  <h4 class="step">6. Turning months into a score</h4>
+  <p>Each month is expressed as how unusual it was for that cell and calendar month (0 = normal, +1 = one standard deviation wetter). That removes whether a product runs wet or dry overall. Each dot is one scored cell-month: the gauges' value across, the product's value up. Tight along the diagonal = the product gets wet and dry months right. r² is the share of the gauges' ups and downs the product reproduces.</p>
+  <div class="controls"><label for="sc-prod">Product</label><select id="sc-prod"></select></div>
+  <div class="mapgrid" style="grid-template-columns:minmax(0,1fr) 260px">
+    <div style="min-width:0"><svg id="gscatter" role="img" aria-label="Gauge anomaly against product anomaly"></svg></div>
+    <div class="panel" id="dry-panel"></div>
+  </div>
+
+  <h4 class="step">7. The scores</h4>
+  <div class="tablewrap"><table class="t" id="gauge-table"></table></div>
+  <p class="muted">r² = share of the gauges' month-to-month ups and downs (standardised anomalies, rain-season months) that the product reproduces. Spearman = the same with ranks, so a few extreme months cannot dominate. Dry-month hit rate = when the gauges put a month in its driest third, how often the product does too; 33% would be chance. False alarms = the share of the product's driest-third months that the gauges did not call dry. Ranges are 90% bootstrap intervals over years. Bias in totals does not count here; see the original report for that.</p>
+  <h3>3-month totals: the scale drought triggers use</h3>
+  <p>The same comparison on 3-month totals (each 3-month window compared with the same window in other years). A window counts only if all three months have gauge data; windows overlap, which the year-resampled ranges account for.</p>
+  <div class="controls"><label for="g3-site">Site</label><select id="g3-site"></select></div>
+  <div class="tablewrap"><table class="t" id="gauge3-table"></table></div>
+  <h3>By month and site</h3>
+  <p>The same comparison for each calendar month, so a product that is good in the core rains but poor at the start or end of the season shows up. Dry-season months in the Sahel have too little rain to score. Each cell holds about 60–80 values, so its 90% range is wide: treat differences under about 0.15 as noise. The outlined value in each column is the best product available in time for a trigger.</p>
+  <div class="controls"><label for="gm-site">Site</label><select id="gm-site"></select></div>
+  <div class="tablewrap"><table class="t" id="gauge-month"></table></div>
+  <h3>By period</h3>
+  <div class="controls"><label for="gp-site">Site</label><select id="gp-site"></select></div>
+  <div class="tablewrap"><table class="t" id="gauge-period"></table></div>
+  <p class="muted" id="gauge-period-note"></p>
+  <h3>How well did the estimates on this page do?</h3>
+  <p>The estimates further down use no gauges. At these same cells and months they can be compared with the gauge result directly. They got CHIRPS v3 right and IMERG Final, GPCC and ERA5 roughly right, but overrated CHIRPS v2 and underrated IMERG Late. The likely reason is that both kinds of shared mistake exist, satellites sharing infrared and GPCC with ERA5 sharing smoothing, while the estimates have to assume one or the other. So outside gauged areas, read the estimated ranks of IMERG Late, ERA5 and CHIRPS v2 as uncertain by about ±0.15.</p>
+  <div class="tablewrap"><table class="t" id="gauge-vs-model"></table></div>
+  <p class="muted">Gauge-based ρ² = r² ÷ the gauges' own reliability (0.78, estimated from product pairs whose mistakes are independent either way). "If satellites share mistakes" is this page's main estimate; "if GPCC and ERA5 share mistakes" is the alternative.</p>
+</section>
+
+<section id="tahmo">
+  <h2>Checked against TAHMO stations across Africa</h2>
+  <p>A second, independent gauge network: TAHMO's curated weather stations, 538 stations in 192 grid cells across East, West, Southern and Central Africa, 2015–2025. GPCC Full ends in 2020, so here GPCC Monitoring takes its place. Stations within 2 km of a station CHIRPS v3 uses were removed (32 of them). Only regional summaries are shown: TAHMO's research licence does not allow sharing its data or station-level results.</p>
+  <div class="callout">
+    <p><b>Most TAHMO cells have one station.</b> One gauge measures a point, not the 55 × 55 km cell, so it agrees less with every product. How much less was measured on the dense AMMA-CATCH cells, by scoring each product against single stations and against the cell average over the same months: single-station scores were 0.61–0.63 of the cell-average scores for every product, and the ranking of products did not change (rank agreement 1.00). So TAHMO's numbers rank products fairly, but run about 40% lower than AMMA's.</p>
+  </div>
+  <h4 class="step">From stations to scored months</h4>
+  <div id="tfunnel"></div>
+  <p class="muted">A month counts for a station only if every day is complete, and a day only if at least 95% of its 5–15-minute readings are present. A cell is scored only if it has at least 24 rain-season months with every product present, which is why many stations with short records drop out at the last step. TAHMO is young: most stations started between 2015 and 2019, so records are short (median 6 years with data per station).</p>
+  <h4 class="step">The scores</h4>
+  <div class="controls"><label for="t-scale">Scale</label><span class="seg" id="t-scale"></span></div>
+  <div class="tablewrap"><table class="t" id="tahmo-table"></table></div>
+  <p class="muted">Cells per region: East Africa 79; West Africa 84; Southern Africa 22; Central Africa 7. Independence from TAHMO is established for CHIRPS (station-list match); it is not established for CPC, GPCC Monitoring, PREC/L and IMERG Final, which take gauge data through national weather services and may include TAHMO stations. CRU scores near zero because it has almost no African stations after 2015 and falls back to its long-term average. Data: TAHMO (Van de Giesen, Hut and Selker 2014, WIREs Water 1(4), 341–348, doi:10.1002/wat2.1034).</p>
+</section>
+
+<section id="yardsticks">
+  <h2>What is this compared against?</h2>
+  <div class="callout">
+    <p><b>Only the gauge section measures against real rainfall</b>, and only in West Africa. Everywhere else real rainfall is never observed and no product, gauge analyses included, is taken as correct; the page then uses one of two stand-ins.</p>
+  </div>
+  <div class="tablewrap"><table class="t" style="font-size:13px">
+    <tr><th>Sections</th><th>Yardstick</th><th>What a high number means</th></tr>
+    <tr><td class="rowh" style="white-space:normal">Skill (ρ²), which product by region, the map's skill layers</td>
+      <td style="text-align:left;white-space:normal"><b>What independent products have in common.</b> Four products with unrelated sources, a gauge network (GPCC), a weather model (ERA5) and two satellites (CHIRP v3 (no stations), IMERG Late), are like four witnesses who never spoke to each other. Where their stories line up is probably what happened. One exception: CHIRP v3 (no stations) and IMERG Late are both built partly from the same infrared satellite images, so when those images mislead, both products go wrong in the same months. Their agreement could then just be a shared mistake, so neither is used to check the other; each is checked only against GPCC and ERA5.</td>
+      <td style="text-align:left;white-space:normal">The product tracks real rainfall closely, as far as the independent witnesses can tell. A blind spot shared by all four would not show.</td></tr>
+    <tr><td class="rowh" style="white-space:normal">One picture (PCA), outliers, disagreement over time, consensus layers</td>
+      <td style="text-align:left;white-space:normal"><b>The average of all twelve products.</b> This is the crowd, not the truth.</td>
+      <td style="text-align:left;white-space:normal">The product differs from the others. Within one product, the cells where it is far from the crowd are mostly the cells where its skill is low (rank correlation −0.7 to −0.9). Between products it can mislead. Half the crowd is gauge analyses and gauge-blended products that share stations and therefore mistakes, so a product built from different inputs looks unusual for not sharing them: in Africa ERA5 is farther from the crowd than GPCC Monitoring (0.39 against 0.31) but scores far higher (0.58 against 0.36). And CHIRPS combines satellite estimates with gauge readings, the two ingredients most other products use, so it lands near the average whether or not it is accurate.</td></tr>
+    <tr><td class="rowh" style="white-space:normal">The answer; checked against independent rain gauges</td>
+      <td style="text-align:left;white-space:normal"><b>Rain gauges not used by the products</b>: AMMA-CATCH dense networks (Niger, Benin, Mali, 2001–2020) and TAHMO stations across Africa (2015–2025). The only real measurements.</td>
+      <td style="text-align:left;white-space:normal">The product reproduces measured rainfall.</td></tr>
+    <tr><td class="rowh" style="white-space:normal">Not used here</td>
+      <td style="text-align:left;white-space:normal">GPCC as a reference. The <a href="../report/">original report</a> measures bias against GPCC; on this page GPCC is one of the four witnesses.</td>
+      <td style="text-align:left;white-space:normal">–</td></tr>
+  </table></div>
+</section>
+
+<section id="findings">
+  <h2>Main findings</h2>
+  <ol class="findings" id="findings-list"><li><b>The best product depends on the region.</b> In West Africa CHIRPS v3 leads against both gauge networks and the gap to IMERG Late widens at 3 months (AMMA r² 0.53 against 0.37). In East Africa IMERG Late and CHIRPS v3 are level; in Southern Africa ERA5 and IMERG Late track 3-month anomalies better than CHIRPS v3, with dry-period detection about equal.</li><li><b>ERA5 is unusable for rainfall triggers in the Sahel</b> (AMMA 3-month r² 0.24, TAHMO West Africa 0.06, dry hit rates 54% and 46%) but mid-pack or better in East and Southern Africa.</li><li><b>IMERG Late does not improve with longer windows.</b> Against AMMA its r² falls from 0.45 monthly to 0.37 for 3-month totals while CHIRPS v3 holds (0.55 to 0.53): its mistakes persist from month to month.</li><li><b>One gauge per cell ranks products fairly.</b> On the dense AMMA cells, scoring against a single gauge instead of the cell average lowered every product's r² by the same factor (0.61–0.63) and left the ranking unchanged, so TAHMO's mostly single-station cells give valid rankings at lower levels.</li><li><b>Where there are no gauges, the gauge analyses are not the reference.</b> Against AMMA, GPCC, CPC, PREC/L and CRU score 0.28–0.42 monthly, behind CHIRPS v3 and IMERG; CRU scores near zero against TAHMO (2015–2025) because it has almost no African stations left.</li><li><b>Twelve products, far fewer independent opinions.</b> After removing the common signal, CHIRP v2 (no stations) and v3 still move together at +0.60, the gauge analyses at +0.06 to +0.25, and IMERG Final at +0.20 with GPCC, to which it is calibrated.</li><li><b>The estimates without gauges are useful but imperfect.</b> At the AMMA cells they got CHIRPS v3 right (0.72 estimated, 0.71 measured) but overrated CHIRPS v2 (0.77 against 0.56) and underrated IMERG Late (0.46 against 0.57).</li></ol>
+</section>
+
+<section id="picture">
+  <h2>The twelve products in one picture</h2>
+  <p class="muted">Yardstick: the average of all twelve products (agreement, not accuracy).</p>
+  <p>A principal component analysis of how the products' monthly rain anomalies move together, pooled over every cell and month in the region. Each dot is a product, placed by its loadings: products that move together sit together, and a product far from the rest is an outlier. The axes give the share of variance each component explains. This shows agreement, which is related to accuracy but not the same: a product built from different inputs than the rest can sit apart and still be good (ERA5 in Africa), and a product made from the same ingredients as the rest sits in the middle regardless (CHIRPS, IMERG Final).</p>
+  <div class="controls">
+    <label for="pca-region">Cells</label><select id="pca-region"></select>
+    <span class="seg" id="pca-axes"></span>
+    <span class="seg" id="pca-mode"></span>
+  </div>
+  <p class="muted" id="pca-mode-note"></p>
+  <div class="mapgrid" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
+    <div style="min-width:0"><svg id="biplot" viewBox="0 0 520 440" role="img" aria-label="PCA biplot of the twelve products"></svg></div>
+    <div style="min-width:0">
+      <h4 style="margin:0 0 6px;font-size:13px">Which product is farthest from the other eleven, share of cells</h4>
+      <div class="bars" id="far-bars"></div>
+      <p class="muted" id="pca-note"></p>
+    </div>
+  </div>
+  <h3>When do they disagree?</h3>
+  <p>Spread of the twelve products' standardised anomalies in each month (standard deviation across products, median over the region's cells). Higher means the products tell more different stories about that month.</p>
+  <div><svg id="spread-ts" viewBox="0 0 760 180" role="img" aria-label="Monthly disagreement between products, 2001 to 2020"></svg></div>
+</section>
+
+<section id="how">
+  <h2>Scoring products without a true rainfall dataset</h2>
+  <h3>Why not just compare with rain gauges?</h3>
+  <p>Where independent gauges exist, that is the best check. Three things get in the way here. A gauge measures rain in a funnel about 20 cm wide, while each grid cell is about 55 × 55 km: a storm can drop 50 mm on the gauge and nothing 10 km away, so even a perfect gauge differs from the cell's true average. Two-thirds of these cells never had a GPCC gauge, so "GPCC" there is interpolated from stations that can be hundreds of kilometres away. And the gauges that are available are already inside CHIRPS and IMERG Final, so scoring those products against them partly scores them against themselves.</p>
+  <h3>What is done instead</h3>
+  <div class="explain">
+    <div>
+      <p>Each product's monthly anomaly is the true anomaly plus that product's own mistake. If two products make independent mistakes, the only thing they have in common is the truth, so how much they move together measures the truth alone. How much a single product moves around holds truth <em>and</em> mistake.</p>
+      <p>With three products that make independent mistakes, those quantities are enough to solve for how much of each product is truth. That share is <b>ρ²</b>: an <em>estimate</em> of the squared correlation between the product and real rainfall anomalies (1 = perfect, 0 = noise). It is inferred from how the products move together; real rainfall itself is never observed. The method is called triple collocation.</p>
+      <p>Four products built from different sources serve as the yardstick: GPCC (gauges), CHIRP v3 (no stations) (satellite infrared), IMERG Late (satellite microwave and infrared) and ERA5 (weather model). With four, each can be scored three ways, and the answers should agree. They do not quite: <b>CHIRP v3 (no stations) and IMERG Late make some of the same mistakes</b>, because both rely on infrared images from the same geostationary satellites. So neither is ever used to score the other. Each is scored only against GPCC and ERA5.</p>
+      <p>Every other product is scored only against yardstick products it shares no input or mistake with. CHIRPS v2 contains CHIRP and gauges, so it is scored against ERA5 alone.</p>
+    </div>
+    <svg viewBox="0 0 380 250" role="img" aria-label="Diagram: four yardstick products, each the true rainfall plus its own mistake; CHIRP v3 (no stations) and IMERG Late share part of theirs">
+      <rect x="140" y="12" width="100" height="40" rx="4" fill="var(--b05)" stroke="var(--b5)"/>
+      <text x="190" y="30" text-anchor="middle" font-size="12" font-weight="700">True rainfall</text>
+      <text x="190" y="45" text-anchor="middle" font-size="10">never observed</text>
+      <g id="core-boxes"></g>
+    </svg>
+  </div>
+  <div class="tablewrap"><table class="t" id="inputs-table"></table></div>
+  <p class="muted">Inputs: G = the shared gauge network (GPCC / GHCN / CAMS stations); C = CHIRP satellite infrared and climatology; I = IMERG satellite constellation; E = ERA5 reanalysis. ● marks the four yardstick products. CHIRPS v3 fills gaps with ERA5; that is 0.25% of this domain, and the <span id="fill-n"></span> cells with more than 1% fill are left unscored.</p>
+  <h3>Which products share mistakes? The data lean one way, the gauges say both</h3>
+  <p>The four products' disagreement could in principle come from a different pair sharing mistakes, GPCC with ERA5 (the <a href="#robust">what-if</a> below). The two explanations predict opposite things where gauges are dense. If the satellites share mistakes, the disagreement should grow there, because GPCC gets better while the satellites' shared mistake stays. If GPCC and ERA5 did, it should shrink, because GPCC's mistakes shrink with more gauges. It grows, everywhere and within Africa, so the satellites' shared mistake is the larger one, and it is what the report's triple collocation assumed. But the <a href="#gauges">independent gauges</a> show GPCC and ERA5 share mistakes too: at the gauged cells, ERA5's skill relative to IMERG Late matches the GPCC/ERA5 explanation, not the satellite one. Both exist; the estimates below use the satellite one.</p>
+  <div class="tablewrap"><table class="t" id="tetrad-table"></table></div>
+</section>
+
+<section id="dependency">
+  <h2>Where agreement is shared error</h2>
+  <p>Left: how strongly each pair of products' anomalies move together (median over cells). Right: what is left after removing the estimated common signal, with CHIRP v3 (no stations) and IMERG Late treated as sharing mistakes. A residual near zero means the pair agrees only through the truth. A positive residual means the pair shares an error, so their agreement is not independent evidence. Pairs a product was scored against are zero by construction.</p>
+  <div class="controls">
+    <label for="dep-region">Cells</label>
+    <select id="dep-region"></select>
+    <span class="seg" id="dep-scale"></span>
+  </div>
+  <div class="mapgrid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <div class="tablewrap"><table class="t" id="dep-corr"></table></div>
+    <div class="tablewrap"><table class="t" id="dep-resid"></table></div>
+  </div>
+  <p class="muted" id="dep-note"></p>
+</section>
+
+<section id="skill">
+  <h2>How closely each product tracks real rainfall, by region (estimated)</h2>
+  <p class="muted">Yardstick: what the independent products have in common (see <a href="#yardsticks">above</a>).</p>
+  <p>Median estimated ρ² over cells. These are estimates from the method above, not comparisons with measured rainfall. Blue rows are available in near-real time, which is what a trigger can use.</p>
+  <div class="controls"><span class="seg" id="skill-scale"></span></div>
+  <div class="tablewrap"><table class="t" id="skill-table"></table></div>
+</section>
+
+<section id="map">
+  <h2>Map</h2>
+  <p>Click a cell to see every product's ρ² there. The regime layer is an exploratory k-means clustering of each cell's relative skill profile. Its structure is weak (silhouette <span id="sil"></span>), so treat it as a sketch, not as zones.</p>
+  <div class="controls">
+    <label for="map-layer">Show</label>
+    <select id="map-layer"></select>
+    <span class="seg" id="map-scale"></span>
+  </div>
+  <div class="mapgrid">
+    <div class="mapbox"><canvas class="map" id="map-canvas" width="720" height="200"></canvas><div class="legend" id="map-legend"></div></div>
+    <div class="panel" id="cell-panel"><h4>Click a cell</h4><p class="muted">The panel lists each product's ρ² at that cell, monthly and 3-month.</p></div>
+  </div>
+</section>
+
+<section id="decide">
+  <h2>Which near-real-time product, by region (estimated)</h2>
+  <p class="muted">Yardstick: what the independent products have in common.</p>
+  <p>For each region, the best of the products a trigger can use today (CHIRPS v2 and v3, IMERG Late, ERA5, CPC, CHIRP v3 (no stations)), the runner-up, and how far ahead the best is. A lead under 0.02 is a tie at this sample size.</p>
+  <div class="controls"><span class="seg" id="dec-scale"></span></div>
+  <div class="tablewrap"><table class="t" id="dec-table"></table></div>
+  <p class="muted" id="dec-note"></p>
+</section>
+
+<section id="robust">
+  <h2>Robustness</h2>
+  <p><b>Alternative: GPCC and ERA5 share mistakes.</b> The independent gauges show this shared mistake is real, alongside the satellites' one. The possible reason: both capture the broad weather pattern of a month but not where individual storms fell, so both could miss the same local wet or dry spell. If that were so, GPCC and ERA5 would be over-credited, the satellites under-credited, and IMERG Late would rank first (column 2). The truth is likely between the two columns.</p>
+  <p>Two more checks. Swapping GPCC for CRU tests the choice of gauge analysis. The naive column uses every triplet and puts IMERG Final in the core, ignoring that Final is calibrated to GPCC. Shared error is then counted as signal, and Final, CHIRPS and the gauges all inflate. That inflation is what this analysis is built to avoid. "–" means the product cannot be scored with that core.</p>
+  <div class="controls"><label for="rob-region">Cells</label><select id="rob-region"></select></div>
+  <div class="tablewrap"><table class="t" id="rob-table"></table></div>
+  <p class="muted" id="rob-note"></p>
+</section>
+
+<section id="method">
+  <h2>Method and limits</h2>
+  <ul>
+    <li><b>Data:</b> ds-precip-intercomparison 0.5° monthly cubes, land, 2001–2020, cells every product covers (50°S–50°N). Months where GPCC's climatology is under 10 mm (30 mm for 3-month sums) are left out. Values are standardised anomalies per calendar month, with the same months used for every product in a cell. UDel (ends 2017) and the ASAP blend (= CHIRPS v2 here) are left out. Implausible months are masked as in the report.</li>
+    <li><b>Model:</b> a one-factor model. Each core product's loading comes from the triple-collocation estimates whose three products are independent once CHIRP v3 (no stations) and IMERG Late are treated as sharing mistakes: two estimates each for GPCC and ERA5, one each for CHIRP v3 (no stations) and IMERG Late. Every other product's covariance with the truth is averaged over the core products independent of it.</li>
+    <li><b>Assumptions that can fail:</b> errors independent between families, a linear relation to the truth, stationarity over 20 years. The residual matrix checks the first. Where CHIRP and IMERG share infrared inputs, or ERA5 and gauges share circulation errors, scores are biased. The direction is toward over-crediting the products involved.</li>
+    <li><b>ρ² is about timing, not amount.</b> It says whether a product gets the anomalies right (wet or dry relative to its own normal), which is what most triggers use. It says nothing about bias in totals; see the report's bias section.</li>
+    <li><b>Per-cell estimates are noisy.</b> About 200 months per cell. Read regions, not single pixels: the per-pixel best product is the same in 2001–2010 and 2011–2020 in only <span id="px-stable"></span> of cells.</li>
+    <li><b>The satellite assumption:</b> four products cannot prove which pair shares mistakes; the gauge-density test supports the satellite pair. A fifth independent source would settle it, for example gauge networks not used by GPCC or CHIRPS, or soil-moisture-based rainfall (SM2RAIN).</li>
+    <li><b>Gauge data:</b> AMMA-CATCH, CC-BY 4.0. Galle et al. (2018), AMMA-CATCH a Critical Zone Observatory in West Africa Monitoring a Region in Transition, Vadose Zone Journal 17(1), 18006; AMMA-CATCH (1990), doi:10.17178/AMMA-CATCH.all. Daily, quality-checked values only; data from the backup-bucket gap estimates are excluded. The network's data policy asks that the data providers be offered co-authorship on publications. TAHMO: Van de Giesen, Hut and Selker (2014), WIREs Water 1(4), 341–348, doi:10.1002/wat2.1034; used under TAHMO's research licence, so this page shows regional scores and selection counts only, no station data or locations.</li>
+    <li><b>Code:</b> <code>scripts/multivariate.py</code>, <code>multivariate_scales.py</code>, <code>multivariate_outliers.py</code>, <code>validate_gauges.py</code>, <code>validate_3month.py</code>, <code>tahmo_daily.py</code> and <code>validate_tahmo.py</code> compute the results; <code>which_product_data.py</code> writes this page's data. All in <a href="https://github.com/OCHA-DAP/ds-precip-intercomparison">OCHA-DAP/ds-precip-intercomparison</a>; gauge sources and licences in <code>docs/gauges/README.md</code>.</li>
+  </ul>
+</section>
+</main>
+<footer>OCHA Centre for Humanitarian Data · Data Science · built from ds-precip-intercomparison · CRU TS appears only as derived statistics (ODbL).</footer>
+</div>
+<script src="which-product.js"></script>
+</body>
+</html>

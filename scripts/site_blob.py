@@ -21,12 +21,13 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import ocha_stratus as stratus  # noqa: E402
+from azure.core.exceptions import ResourceNotFoundError  # noqa: E402
 from azure.storage.blob import ContentSettings  # noqa: E402
 
 from src.constants import PROJECT_PREFIX  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1] / "site"
-SUBDIRS = ("report/data", "report/fig", "explorer/data")
+SUBDIRS = ("report/data", "report/fig", "explorer/data", "which-product/data")
 PREFIX = f"{PROJECT_PREFIX}/site"
 MANIFEST = "manifest.json"
 
@@ -35,7 +36,7 @@ def _sha(b: bytes) -> str:
     return hashlib.sha256(b).hexdigest()
 
 
-def upload() -> None:
+def upload(drop: bool = False) -> None:
     files = sorted(p for sub in SUBDIRS for p in (ROOT / sub).rglob("*") if p.is_file())
     if not files:
         raise SystemExit("nothing to upload (run analyze.py and figures.py first)")
@@ -44,8 +45,14 @@ def upload() -> None:
     # unchanged files (same sha256 as the current manifest) are not re-uploaded
     try:
         old = json.loads(cc.download_blob(f"{PREFIX}/{MANIFEST}").readall())["files"]
-    except Exception:  # noqa: BLE001 - first upload
+    except ResourceNotFoundError:  # first upload
         old = {}
+    # the manifest is rebuilt from local files only: a published file missing here (a machine
+    # holding only the section it regenerated, a half-finished download) would leave the site
+    gone = sorted(set(old) - {p.relative_to(ROOT).as_posix() for p in files})
+    if gone and not drop:
+        raise SystemExit(f"{len(gone)} published files are not in site/ here, e.g. {gone[:3]}: run "
+                         "`site_blob.py download` first and regenerate what changed, or pass --drop to remove them")
     sent = 0
     for p in files:
         rel = p.relative_to(ROOT).as_posix()
@@ -87,4 +94,6 @@ def download() -> None:
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("action", choices=["upload", "download"])
-    upload() if ap.parse_args().action == "upload" else download()
+    ap.add_argument("--drop", action="store_true", help="upload: let published files that are absent locally leave the site")
+    args = ap.parse_args()
+    upload(args.drop) if args.action == "upload" else download()

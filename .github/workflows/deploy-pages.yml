@@ -6,7 +6,7 @@ name: Deploy Pages
 on:
   push:
     branches: [main]
-    paths: ["pages/**", "site/report/*.html", "site/report/*.js", "site/report/*.css", "site/explorer/*.html", "site/explorer/*.js", "site/explorer/*.css", "scripts/site_blob.py", ".github/workflows/deploy-pages.yml"]
+    paths: ["pages/**", "site/report/*.html", "site/report/*.js", "site/report/*.css", "site/explorer/*.html", "site/explorer/*.js", "site/explorer/*.css", "site/which-product/*.html", "site/which-product/*.js", "site/which-product/*.css", "scripts/site_blob.py", ".github/workflows/deploy-pages.yml"]
   workflow_dispatch:
 
 permissions:
@@ -36,14 +36,17 @@ jobs:
         run: uv run --no-project --python 3.12 --with "ocha-stratus>=0.1.8" python scripts/site_blob.py download
       - name: Assemble site
         run: |
-          mkdir -p _site/report _site/explorer
+          mkdir -p _site/report _site/explorer _site/which-product
           cp -r pages/. _site/
           cp site/report/index.html site/report/report.js site/report/report.css _site/report/
           cp -r site/report/data site/report/fig _site/report/
           cp site/explorer/index.html site/explorer/explorer.js site/explorer/explorer.css _site/explorer/
           cp -r site/explorer/data _site/explorer/
+          cp site/which-product/index.html site/which-product/which-product.js site/which-product/which-product.css _site/which-product/
+          cp -r site/which-product/data _site/which-product/
           test -f _site/report/data/meta.json && test -f _site/report/fig/bias_vs_gpcc.png
           test -f _site/explorer/data/meta.json && test -f _site/explorer/data/cells.bin
+          test -f _site/which-product/data/summary.json && test -f _site/which-product/data/tahmo_scores.json
           du -sh _site
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
