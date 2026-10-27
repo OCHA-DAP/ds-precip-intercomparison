@@ -498,6 +498,52 @@ ${s.why}; ${s.complete_months} complete months 2001–2020</title></circle>`;
       <p style="margin:8px 0 0">Hit rate ${pct(hit / (hit + miss))} (chance 33%) · false alarms ${pct(fa / (hit + fa))} of its dry calls.</p>`;
   }
   scSel.onchange = drawScatter; drawScatter();
+
+  // ---- does averaging products help? Scored from the same pooled anomalies as step 6, with the
+  // same rules as validate_gauges.py (driest third per cell x calendar month, year-block bootstrap).
+  (function () {
+    const z = V.pooled.z, pc = V.pooled.cell, mon = V.pooled.month, year = V.pooled.year, valid = V.pooled.valid.map(Boolean), n = z.length;
+    const col = p => z.map(r => r[V.products.indexOf(p) + 1]);
+    const avg = ps => { const cs = ps.map(col); return z.map((_, i) => cs.reduce((s, c) => s + c[i], 0) / cs.length); };
+    const gauge = z.map(r => r[0]);
+    const SETS = [
+      ["CHIRPS v3", ["chirps_v3"]], ["IMERG Late", ["imerg_late"]], ["IMERG Final (not near-real-time)", ["imerg_final"]],
+      ["CHIRPS v3 + IMERG Late", ["chirps_v3", "imerg_late"]],
+      ["One per family: CHIRPS v3 + IMERG Late + ERA5 + GPCC Full", ["chirps_v3", "imerg_late", "era5", "gpcc_full"]],
+      ["All 6 near-real-time products", S.nrt], ["All 12 products", V.products]];
+    const rank = a => { const o = a.map((v, i) => [v, i]).sort((p, q) => p[0] - q[0]), r = new Array(a.length); let i = 0;
+      while (i < o.length) { let j = i; while (j + 1 < o.length && o[j + 1][0] === o[i][0]) j++; for (let k = i; k <= j; k++) r[o[k][1]] = (i + j) / 2 + 1; i = j + 1; } return r; };
+    const corr = (a, b) => { const m = a.length, ma = a.reduce((s, v) => s + v, 0) / m, mb = b.reduce((s, v) => s + v, 0) / m; let sab = 0, saa = 0, sbb = 0;
+      for (let i = 0; i < m; i++) { sab += (a[i] - ma) * (b[i] - mb); saa += (a[i] - ma) ** 2; sbb += (b[i] - mb) ** 2; } return sab / Math.sqrt(saa * sbb); };
+    const groups = {}; for (let i = 0; i < n; i++) (groups[pc[i] + ":" + mon[i]] ||= []).push(i);
+    const dryFlags = x => { const d = new Array(n).fill(false); for (const idx of Object.values(groups)) { if (idx.length < 6) continue;
+      const s = idx.map(i => x[i]).sort((a, b) => a - b), pos = (s.length - 1) / 3, lo = Math.floor(pos), q = s[lo] + (s[Math.min(lo + 1, s.length - 1)] - s[lo]) * (pos - lo);
+      for (const i of idx) d[i] = x[i] <= q; } return d; };
+    const gd = dryFlags(gauge);
+    const scores = (x, idx) => { const xs = idx.map(i => x[i]), gs = idx.map(i => gauge[i]), d = dryFlags(x);
+      let hit = 0, miss = 0, fa = 0; for (const i of idx) { if (gd[i] && d[i]) hit++; else if (gd[i]) miss++; else if (d[i]) fa++; }
+      return {r2: corr(gs, xs) ** 2, rho: corr(rank(gs), rank(xs)), hit: hit / (hit + miss), fa: fa / (hit + fa)}; };
+    const vidx = [...Array(n).keys()].filter(i => valid[i]), yrs = [...new Set(year)], byYear = {}; vidx.forEach(i => (byYear[year[i]] ||= []).push(i));
+    let seed = 7; const rnd = () => { seed = (seed * 1664525 + 1013904223) % 4294967296; return seed / 4294967296; };
+    const boots = []; for (let b = 0; b < 300; b++) { const idx = []; for (let k = 0; k < yrs.length; k++) idx.push(...byYear[yrs[Math.floor(rnd() * yrs.length)]]); boots.push(idx); }
+    const ci = (x, key) => { const v = boots.map(idx => scores(x, idx)[key]).sort((a, b) => a - b); return [v[Math.floor(v.length * 0.05)], v[Math.ceil(v.length * 0.95) - 1]]; };
+    const W = 240, H = 240, m = 28, lim = 3.2;
+    const sx = v => m + (Math.max(-lim, Math.min(lim, v)) + lim) / (2 * lim) * (W - 2 * m), sy = v => H - m - (Math.max(-lim, Math.min(lim, v)) + lim) / (2 * lim) * (H - 2 * m);
+    const rows = SETS.map(([name, ps]) => { const x = ps.length === 1 ? col(ps[0]) : avg(ps), s = scores(x, vidx);
+      let g = `<rect x="${m}" y="${m}" width="${W - 2 * m}" height="${H - 2 * m}" fill="var(--surface)" stroke="var(--n2)"/>`;
+      for (let v = -3; v <= 3; v += 3) g += `<line x1="${sx(v)}" x2="${sx(v)}" y1="${m}" y2="${H - m}" stroke="var(--n1)"/><line x1="${m}" x2="${W - m}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--n1)"/><text x="${sx(v)}" y="${H - m + 11}" font-size="9" text-anchor="middle">${v}</text><text x="${m - 4}" y="${sy(v) + 3}" font-size="9" text-anchor="end">${v}</text>`;
+      g += `<line x1="${sx(-lim)}" y1="${sy(-lim)}" x2="${sx(lim)}" y2="${sy(lim)}" stroke="var(--n3)" stroke-dasharray="4 3"/>`;
+      vidx.forEach(i => { g += `<circle cx="${sx(gauge[i]).toFixed(1)}" cy="${sy(x[i]).toFixed(1)}" r="1.8" fill="${SITECOL[V.cells[pc[i]].site]}" fill-opacity=".45"/>`; });
+      g += `<text x="${W / 2}" y="${H - 4}" font-size="9" text-anchor="middle">Gauges</text><text transform="translate(9 ${H / 2}) rotate(-90)" font-size="9" text-anchor="middle">${ps.length === 1 ? "Product" : "Average"}</text>`;
+      g += `<text x="${m + 6}" y="${m + 14}" font-size="12" font-weight="700">r² = ${fmt(s.r2)}</text><text x="${m + 6}" y="${m + 28}" font-size="11">ρ = ${fmt(s.rho)}</text>`;
+      return {name, ps, x, s, svg: `<figure style="margin:0"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${name}: gauge anomaly against ${ps.length === 1 ? "product" : "average"} anomaly">${g}</svg><figcaption style="font-size:12px;text-align:center;margin-top:2px">${name}</figcaption></figure>`}; });
+    document.getElementById("ens-scatter").innerHTML = rows.map(r => r.svg).join("");
+    // same colour scales and inline 90% ranges as the step-7 table
+    const td = (r, key, sc) => { const [lo, up] = ci(r.x, key), v = r.s[key], e = cell(v, seq(v / sc));
+      e.innerHTML += `<span class="muted num" style="font-size:11px"> ${fmt(lo)}–${fmt(up)}</span>`; return e.outerHTML; };
+    document.getElementById("ens-table").innerHTML = `<tr><th>Scored against the gauges (monthly)</th><th>r²</th><th>Spearman ρ</th><th>Dry-month hit rate</th><th>False alarms</th></tr>` +
+      rows.map(r => `<tr><td class="rowh">${r.name}${r.ps.length > 1 ? ` <span class="muted">(average of ${r.ps.length})</span>` : ""}</td>${td(r, "r2", 0.7)}${td(r, "rho", 0.85)}${td(r, "hit", 0.8)}<td class="num">${pct(r.s.fa)}</td></tr>`).join("");
+  })();
 })();
 
 // ---- gauge 3-month and TAHMO tables
