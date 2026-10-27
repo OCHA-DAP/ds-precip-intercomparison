@@ -91,3 +91,5 @@ footer { padding-block:20px 30px; padding-inline:clamp(16px,4vw,44px); font-size
   font:500 13px/1 var(--body); color:var(--b6);
   background:var(--b05); border:1px solid var(--b1); border-radius:4px; text-decoration:none; }
 .home-link:hover { background:var(--b1); }
+.ens { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:12px; margin:12px 0; }
+.ens svg { width:100%; height:auto; display:block; }
